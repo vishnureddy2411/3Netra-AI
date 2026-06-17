@@ -1,0 +1,58 @@
+# ============================================================
+# 3Netra-AI — Docker Compose (Local Development)
+# 
+# What runs here:
+#   valkey    → Cache (Valkey 8.1 = Redis fork, BSD-3)
+#
+# What runs OUTSIDE Docker during development:
+#   backend   → FastAPI (python uvicorn main:app --reload)
+#   frontend  → Next.js (npm run dev)
+#   mcp       → FastMCP (python mcp_server.py)
+#
+# Why? Hot reload works better without Docker in dev.
+# Production uses full Docker on Oracle Cloud VM.
+#
+# Start:  docker compose up -d
+# Stop:   docker compose down
+# Logs:   docker compose logs -f valkey
+# ============================================================
+
+version: "3.9"
+
+services:
+
+  # ── Valkey (Redis-compatible cache) ──────────────────────────
+  valkey:
+    image: valkey/valkey:8.1-alpine
+    container_name: 3netra-valkey
+    ports:
+      - "6379:6379"
+    volumes:
+      - valkey_data:/data
+    command: >
+      valkey-server
+      --save 60 1
+      --loglevel warning
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ── Preview Sandbox Base Image (pre-pulled for warm pool) ─────
+  # This just pulls the image so the warm pool starts fast.
+  # docker-py creates containers from this image in preview.py
+  preview-base:
+    image: node:20-slim
+    container_name: 3netra-preview-base
+    command: echo "Base image ready"
+    profiles:
+      - tools   # Only started with: docker compose --profile tools up
+
+# ── Volumes ───────────────────────────────────────────────────
+volumes:
+  valkey_data:
+    driver: local

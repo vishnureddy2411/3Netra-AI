@@ -1,0 +1,125 @@
+# ============================================================
+# 3Netra-AI — Python Packages
+# These are all the tools our backend needs to run.
+# >= means "this version or newer" — pip picks what works together
+# ============================================================
+
+
+# ── WEB FRAMEWORK ─────────────────────────────────────────────
+# FastAPI: creates our backend server and all API endpoints
+fastapi>=0.115.0
+
+# Uvicorn: runs FastAPI (like an engine that powers FastAPI)
+uvicorn[standard]>=0.30.0
+
+# Allows file uploads (PDFs, Word docs) through the API
+python-multipart>=0.0.18
+
+# Reads our .env.local file and loads API keys into the code
+python-dotenv>=1.1.0
+
+
+# ── DATA VALIDATION ───────────────────────────────────────────
+# Pydantic: checks that Claude's responses have the correct shape
+# Example: makes sure ChairmanVerdict always has a verdict field
+pydantic>=2.7.0
+
+# Lets us load .env.local settings as Python objects
+pydantic-settings>=2.7.0
+
+
+# ── AI / LLM ──────────────────────────────────────────────────
+# litellm: universal AI caller — use Claude, GPT, Gemini with same code
+# Swap models by changing one line in .env.local
+litellm>=1.63.0
+
+# Anthropic: the official Claude API library
+anthropic>=0.44.0
+
+# tiktoken: counts tokens before every Claude call
+# Prevents sending too much text and hitting the limit
+tiktoken>=0.7.0
+
+
+# ── MCP SERVER ────────────────────────────────────────────────
+# FastMCP: builds our shared memory server (project office)
+# All agents read/write project state through this
+fastmcp==2.3.3
+
+
+# ── HTTP CLIENT ───────────────────────────────────────────────
+# httpx: makes async HTTP calls to GitHub, HackerNews, arXiv, StackOverflow
+# One shared connection pool — faster than creating new connections each time
+httpx>=0.28.1
+
+# aiofiles: reads and writes files without blocking the server
+aiofiles>=24.0.0
+
+
+# ── TOKEN OPTIMIZATION ────────────────────────────────────────
+# pdfplumber: converts uploaded PDF files to plain text
+# Saves 60% tokens vs sending raw PDF to Claude
+pdfplumber>=0.11.0
+
+# python-docx: converts uploaded Word documents to plain text
+python-docx>=1.1.0
+
+# trafilatura: strips ads/navigation from web pages, keeps main content
+# Makes research agent 75% cheaper by removing junk HTML
+trafilatura>=1.12.0
+
+# markdownify: converts HTML to clean Markdown format
+markdownify>=0.13.0
+
+
+# ── EMBEDDINGS (runs locally, completely free) ─────────────────
+# sentence-transformers: converts text to 384 numbers (vectors)
+# Used by memory system to find similar past decisions
+sentence-transformers>=3.0.0
+
+# torch: the engine that runs sentence-transformers (CPU mode, no GPU needed)
+torch>=2.5.0
+
+
+# ── DATABASE ──────────────────────────────────────────────────
+# supabase: connects to our Supabase database (stores projects, decisions, files)
+supabase>=2.9.0
+
+# aioredis: connects to Valkey cache (fast temporary storage)
+aioredis>=2.0.0
+
+
+# ── PREVIEW SANDBOX ───────────────────────────────────────────
+# docker: controls Docker from Python code (spins up preview containers)
+docker>=7.0.0
+
+# playwright: opens a browser, takes screenshots, clicks buttons automatically
+# Used for live preview after every module is built
+playwright>=1.44.0
+
+
+# ── CAREER OUTPUT ─────────────────────────────────────────────
+# PyGithub: updates GitHub README and creates Pull Requests automatically
+PyGithub>=2.3.0
+
+# weasyprint: converts HTML to PDF (for the Chairman verdict PDF card)
+weasyprint>=62.0
+
+
+# ── LOGGING ───────────────────────────────────────────────────
+# structlog: writes clean, structured logs so we can debug problems easily
+structlog>=24.0.0
+
+
+# ── ERROR TRACKING ────────────────────────────────────────────
+# sentry-sdk: catches and reports errors in the live product automatically
+# We add this in Stage 11 (QA) — installed now, configured later
+sentry-sdk[fastapi]>=2.0.0
+
+
+# ── TESTING ───────────────────────────────────────────────────
+# pytest: runs all our automated tests with one command
+pytest>=8.0.0
+
+# pytest-asyncio: lets pytest test our async FastAPI functions
+pytest-asyncio>=0.24.0
