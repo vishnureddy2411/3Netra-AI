@@ -206,11 +206,12 @@ async def health(request: Request):
 # Import and register all route modules here
 # Import only routes that exist so far
 # Add more here as each stage is completed
-from routes import research, council, diagrams
+from routes import research, council, diagrams, project_graph
 
-app.include_router(research.router,  prefix="/api")
-app.include_router(council.router,   prefix="/api")
-app.include_router(diagrams.router,  prefix="/api")
+app.include_router(research.router,       prefix="/api")
+app.include_router(council.router,        prefix="/api")
+app.include_router(diagrams.router,       prefix="/api")
+app.include_router(project_graph.router,  prefix="/api")
 
 # ── Dev entry point ───────────────────────────────────────────────────────────
 if __name__ == "__main__":
