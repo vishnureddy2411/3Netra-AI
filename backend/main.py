@@ -17,7 +17,8 @@ import os
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime
-
+from dotenv import load_dotenv
+load_dotenv("../.env.local")
 import httpx
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -203,16 +204,11 @@ async def health(request: Request):
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 # Import and register all route modules here
-from routes import research, council, diagrams, build, preview, memory, career, session
+# Import only routes that exist so far
+# Add more here as each stage is completed
+from routes import research
 
 app.include_router(research.router, prefix="/api")
-app.include_router(council.router,  prefix="/api")
-app.include_router(diagrams.router, prefix="/api")
-app.include_router(build.router,    prefix="/api")
-app.include_router(preview.router,  prefix="/api")
-app.include_router(memory.router,   prefix="/api")
-app.include_router(career.router,   prefix="/api")
-app.include_router(session.router,  prefix="/api")
 
 
 # ── Dev entry point ───────────────────────────────────────────────────────────

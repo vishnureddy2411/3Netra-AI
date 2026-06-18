@@ -723,18 +723,20 @@ def health_check() -> str:
 # ════════════════════════════════════════════════════════════
 
 # ════════════════════════════════════════════════════════════
-# HTTP HEALTH ENDPOINT — responds to curl, browser, monitoring
+# HTTP HEALTH ENDPOINT — using FastMCP's built-in custom_route
 # ════════════════════════════════════════════════════════════
+# This is the correct way to add HTTP routes to a FastMCP server.
+# Using Starlette mounting breaks the MCP protocol endpoint.
+# custom_route adds HTTP endpoints directly to the same server.
 
-from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import JSONResponse
-from starlette.routing import Mount, Route
 
 
+@mcp.custom_route("/health", methods=["GET"])
 async def http_health(request: Request) -> JSONResponse:
     """
-    Plain HTTP health check — responds to curl, browser, any HTTP client.
+    Plain HTTP health check.
     GET http://localhost:8001/health
     Works alongside the MCP protocol endpoint at /mcp
     """
@@ -752,7 +754,7 @@ async def http_health(request: Request) -> JSONResponse:
         "port": int(os.getenv("MCP_SERVER_PORT", "8001")),
         "database": str(DB_PATH),
         "database_status": db_status,
-        "tools_registered": 18,
+        "tools_registered": 24,
         "protocol": "MCP + HTTP",
         "mcp_endpoint": "/mcp",
         "health_endpoint": "/health",
@@ -761,6 +763,7 @@ async def http_health(request: Request) -> JSONResponse:
     })
 
 
+@mcp.custom_route("/", methods=["GET"])
 async def http_root(request: Request) -> JSONResponse:
     """Root endpoint — explains what this server is."""
     return JSONResponse({
@@ -771,48 +774,22 @@ async def http_root(request: Request) -> JSONResponse:
             "/health": "GET — health check in plain JSON",
             "/mcp":    "MCP protocol — used by AI agents",
         },
-        "tools": [
-            "get_project_plan", "save_project_plan",
-            "get_build_status", "write_approval",
-            "get_existing_files", "write_file",
-            "get_reusable_components", "get_api_contracts",
-            "get_project_graph", "save_project_graph",
-            "write_decision", "recall_decisions",
-            "save_research_report", "get_research_report",
-            "save_council_verdict", "get_council_verdict",
-            "save_diagram", "get_diagrams",
-            "get_relevant_skills", "get_career_artifacts",
-            "save_career_artifact", "health_check",
-            "get_session_resume_state", "write_api_contract",
-        ],
     })
 
 
+# ════════════════════════════════════════════════════════════
+# START SERVER
+# ════════════════════════════════════════════════════════════
+
 if __name__ == "__main__":
-    import uvicorn
-
     port = int(os.getenv("MCP_SERVER_PORT", "8001"))
-
-    # Build combined app: HTTP routes + MCP protocol
-    mcp_app = mcp.streamable_http_app()
-
-    combined_app = Starlette(
-        routes=[
-            Route("/health", http_health),
-            Route("/", http_root),
-            Mount("/mcp", app=mcp_app),
-        ]
-    )
-
     logger.info(f"Starting 3Netra-AI MCP Server on port {port}")
     logger.info(f"Database: {DB_PATH.resolve()}")
     logger.info(f"Health check: http://localhost:{port}/health")
     logger.info(f"MCP endpoint: http://localhost:{port}/mcp")
     logger.info("24 tools registered and ready")
-
-    uvicorn.run(
-        combined_app,
+    mcp.run(
+        transport="streamable-http",
         host="0.0.0.0",
         port=port,
-        log_level="info",
     )
