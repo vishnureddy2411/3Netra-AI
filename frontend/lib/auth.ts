@@ -40,9 +40,13 @@ export async function signOut() {
 // ── Get current session ───────────────────────
 
 export async function getSession() {
-  const { data: { session }, error } = await supabase.auth.getSession()
-  if (error) throw error
-  return session
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession()
+    if (error) return null
+    return session
+  } catch {
+    return null
+  }
 }
 
 // ── Get current user ──────────────────────────

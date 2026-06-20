@@ -7,7 +7,6 @@ import GateStep2 from '../components/gates/GateStep2'
 import GateStep3 from '../components/gates/GateStep3'
 import GateStep4 from '../components/gates/GateStep4'
 import GateSummary from '../components/gates/GateSummary'
-
 import ThinkingCard from '../components/cards/ThinkingCard'
 import IdeasCard from '../components/cards/IdeasCard'
 import AlternativesCard from '../components/cards/AlternativesCard'
@@ -16,9 +15,9 @@ import DeepAnalysisCard from '../components/cards/DeepAnalysisCard'
 import BuildApprovedCard from '../components/cards/BuildApprovedCard'
 import ConfirmationGateCard from '../components/cards/ConfirmationGateCard'
 import DiscussionCard from '../components/cards/DiscussionCard'
-import NewSessionCard from '../components/cards/NewSessionCard'
 import DiagramsCard from '../components/cards/DiagramsCard'
 import GraphCard from '../components/cards/GraphCard'
+import NewSessionCard from '../components/cards/NewSessionCard'
 import Sidebar from '../components/sidebar/Sidebar'
 import UserMenu from '../components/sidebar/UserMenu'
 
@@ -34,8 +33,13 @@ import {
   runProjectGraph,
 } from '../lib/api'
 import { PURPOSE_OPTIONS } from '../lib/constants'
-import { createProject, createSession, saveSessionMessage, SKIP_SAVE_TYPES, MAX_SESSION_MESSAGES } from '../lib/projects'
-
+import {
+  createProject,
+  createSession,
+  saveSessionMessage,
+  SKIP_SAVE_TYPES,
+  MAX_SESSION_MESSAGES,
+} from '../lib/projects'
 import type {
   Message,
   MessageContent,
@@ -116,74 +120,81 @@ export default function Home() {
   const [sidebarOpen,           setSidebarOpen]           = useState(true)
   const [dbProjectId,           setDbProjectId]           = useState<string | null>(null)
   const [isLoadingProject,      setIsLoadingProject]      = useState(false)
-
+  const [isInitializing,        setIsInitializing]        = useState(true)
   const [activeSessionId,       setActiveSessionId]       = useState<string | null>(null)
   const [showNewSession,        setShowNewSession]        = useState(false)
 
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  // ── Auth protection + project loading ─────────
+  // ── Auth + project init ───────────────────────
 
   useEffect(() => {
-    import('../lib/auth').then(({ getSession }) => {
-      getSession().then(session => {
+    let mounted = true
+
+    const init = async () => {
+      try {
+        const { getSession } = await import('../lib/auth')
+        const session = await getSession()
+
+        if (!mounted) return
+
         if (!session) {
           window.location.href = '/auth'
           return
         }
+
         const params    = new URLSearchParams(window.location.search)
         const projectId = params.get('project')
+
         if (projectId) {
           setDbProjectId(projectId)
           setIsLoadingProject(true)
-          import('../lib/projects').then(({ getProject }) => {
-            getProject(projectId).then(project => {
-              if (project) {
-                setGateData({
-                  project_type: 'existing',
-                  role:         project.target_role || '',
-                  idea:         project.full_idea || '',
-                  purpose:      project.purpose || 'portfolio',
-                })
-                setIntakeData({
-                  purpose:         project.purpose || 'portfolio',
-                  role:            project.target_role || '',
-                  originalMessage: project.full_idea || '',
-                })
-                setGateStep(5)
-                addMsg({
-                  type:   'chosen',
-                  choice: `→ Resumed: ${project.title}`,
-                })
-              }
-            }).catch(() => {}).finally(() => setIsLoadingProject(false))
-          })
+          try {
+            const { getProject } = await import('../lib/projects')
+            const project = await getProject(projectId)
+            if (project && mounted) {
+              setGateData({
+                project_type: 'existing',
+                role:         project.target_role || '',
+                idea:         project.full_idea || '',
+                purpose:      project.purpose || 'portfolio',
+              })
+              setIntakeData({
+                purpose:         project.purpose || 'portfolio',
+                role:            project.target_role || '',
+                originalMessage: project.full_idea || '',
+              })
+              setGateStep(5)
+              addMsg({ type: 'chosen', choice: `→ Resumed: ${project.title}` })
+            }
+          } catch (_e) {
+            // ignore
+          } finally {
+            if (mounted) setIsLoadingProject(false)
+          }
         }
-      }).catch(() => {
-        window.location.href = '/auth'
-      })
-    })
+      } catch (_e) {
+        if (mounted) window.location.href = '/auth'
+      } finally {
+        if (mounted) setIsInitializing(false)
+      }
+    }
+
+    init()
+    return () => { mounted = false }
   }, [])
 
-  // ── Scroll to bottom ──────────────────────────
+  // ── Scroll ────────────────────────────────────
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // ── helpers ──────────────────────────────────
+  // ── Helpers ───────────────────────────────────
 
   const addMsg = (content: MessageContent): string => {
     const id = Math.random().toString(36).slice(2)
-    setMessages(prev => {
-      const updated = [...prev, { id, content }]
-      // Show new session banner at message limit
-      if (updated.length >= MAX_SESSION_MESSAGES) {
-        setShowNewSession(true)
-      }
-      return updated
-    })
-    // Auto-save to DB if session exists and message type is not skipped
+    setMessages(prev => [...prev, { id, content }])
     if (dbProjectId && activeSessionId && !SKIP_SAVE_TYPES.includes(content.type)) {
       saveSessionMessage(
         dbProjectId,
@@ -200,7 +211,7 @@ export default function Home() {
     setMessages(prev => prev.map(m => m.id === id ? { ...m, content } : m))
   }
 
-  // ── Phase 2: diagrams + graph ─────────────────
+  // ── Phase 2 ───────────────────────────────────
 
   const runPhase2 = async (projectId: string, chosenIdea: string) => {
     setIsRunning(true)
@@ -229,7 +240,7 @@ export default function Home() {
     }
   }
 
-  // ── Flow 1: no idea ───────────────────────────
+  // ── Flow 1 ────────────────────────────────────
 
   const runFlow1 = async (context: string, intake: IntakeData) => {
     const thinkId = addMsg({
@@ -273,7 +284,7 @@ export default function Home() {
     }
   }
 
-  // ── Flow 2: has idea ──────────────────────────
+  // ── Flow 2 ────────────────────────────────────
 
   const runFlow2 = async (idea: string, intake: IntakeData) => {
     const enrichedIdea = buildEnrichedIdea(idea, intake)
@@ -379,7 +390,7 @@ export default function Home() {
     }
   }
 
-  // ── Confirmation gate helpers ─────────────────
+  // ── Confirmation gate ─────────────────────────
 
   const showConfirmationGate = (selectedProject: SelectedProject) => {
     setPendingProject(selectedProject)
@@ -400,31 +411,18 @@ export default function Home() {
     setSelectionMade(true)
     addMsg({ type: 'chosen', choice: `→ Building: ${project.title}` })
 
-    const savedProject = await createProject(
-      project,
-      intakeData.role,
-      intakeData.purpose,
-    )
+    const savedProject = await createProject(project, intakeData.role, intakeData.purpose)
     if (savedProject) {
       setDbProjectId(savedProject.id)
-      // Create first session for planning stage
-      const session = await createSession(
-        savedProject.id,
-        6,
-        'planning',
-        'Planning Session 1',
-      )
+      const session = await createSession(savedProject.id, 6, 'planning', 'Planning Session 1')
       if (session) {
         setActiveSessionId(session.id)
-        // Save all existing messages to this session
         for (const msg of messages) {
           if (!SKIP_SAVE_TYPES.includes(msg.content.type)) {
             await saveSessionMessage(
-              savedProject.id,
-              session.id,
+              savedProject.id, session.id,
               msg.content.type === 'user' ? 'user' : 'agent',
-              msg.content.type,
-              msg.content,
+              msg.content.type, msg.content,
             )
           }
         }
@@ -436,11 +434,7 @@ export default function Home() {
 
   const handleStartDiscussion = () => {
     if (!pendingProject || !confirmGateMsgId) return
-    updateMsg(confirmGateMsgId, {
-      type: 'discussion',
-      selectedProject: pendingProject,
-      history: [],
-    })
+    updateMsg(confirmGateMsgId, { type: 'discussion', selectedProject: pendingProject, history: [] })
     setDiscussionMsgId(confirmGateMsgId)
     setConfirmGateMsgId(null)
   }
@@ -449,38 +443,19 @@ export default function Home() {
     if (!pendingProject || !intakeData || !discussionMsgId || isDiscussing) return
     setIsDiscussing(true)
 
-    const updatedHistory: DiscussionTurn[] = [
-      ...currentHistory,
-      { role: 'user', content: userMessage },
-    ]
-
-    updateMsg(discussionMsgId, {
-      type: 'discussion',
-      selectedProject: pendingProject,
-      history: updatedHistory,
-    })
+    const updatedHistory: DiscussionTurn[] = [...currentHistory, { role: 'user', content: userMessage }]
+    updateMsg(discussionMsgId, { type: 'discussion', selectedProject: pendingProject, history: updatedHistory })
 
     try {
       const r = await runDiscussion(pendingProject, userMessage, currentHistory, intakeData)
-      const finalHistory: DiscussionTurn[] = [
-        ...updatedHistory,
-        { role: 'mentor', content: r.response },
-      ]
-      updateMsg(discussionMsgId, {
-        type: 'discussion',
-        selectedProject: pendingProject,
-        history: finalHistory,
-      })
+      const finalHistory: DiscussionTurn[] = [...updatedHistory, { role: 'mentor', content: r.response }]
+      updateMsg(discussionMsgId, { type: 'discussion', selectedProject: pendingProject, history: finalHistory })
     } catch {
       const errorHistory: DiscussionTurn[] = [
         ...updatedHistory,
         { role: 'mentor', content: 'I had a technical issue. Are you ready to move to diagrams, or do you have more questions?' },
       ]
-      updateMsg(discussionMsgId, {
-        type: 'discussion',
-        selectedProject: pendingProject,
-        history: errorHistory,
-      })
+      updateMsg(discussionMsgId, { type: 'discussion', selectedProject: pendingProject, history: errorHistory })
     } finally {
       setIsDiscussing(false)
     }
@@ -490,8 +465,7 @@ export default function Home() {
     if (!pendingProject) return
     const project   = pendingProject
     const projectId = (project.projectId && project.projectId !== '')
-      ? project.projectId
-      : (activeProjectId || '')
+      ? project.projectId : (activeProjectId || '')
     setPendingProject(null)
     setDiscussionMsgId(null)
     setSelectionMade(true)
@@ -499,18 +473,28 @@ export default function Home() {
     runPhase2(projectId, project.fullIdea)
   }
 
+  // ── New session ───────────────────────────────
+
+  const handleStartNewSession = async () => {
+    if (!dbProjectId) return
+    setShowNewSession(false)
+    const session = await createSession(dbProjectId, 6, 'planning')
+    if (session) setActiveSessionId(session.id)
+    setMessages([])
+    setSelectionMade(false)
+    setPendingProject(null)
+    setConfirmGateMsgId(null)
+    setDiscussionMsgId(null)
+    setIsDiscussing(false)
+    addMsg({ type: 'chosen', choice: '→ New session started — project memory preserved' })
+  }
+
   // ── Gate ──────────────────────────────────────
 
   const handleGateAnswer = async (step: number, value: string) => {
     if (step === 1) {
-      if (value === 'existing') {
-        setGateStep(5)
-        addMsg({ type: 'chosen', choice: '→ Resuming last project...' })
-        return
-      }
-      setGateData(prev => ({ ...prev, project_type: value }))
-      setGateStep(2)
-      return
+      if (value === 'existing') { setGateStep(5); addMsg({ type: 'chosen', choice: '→ Resuming last project...' }); return }
+      setGateData(prev => ({ ...prev, project_type: value })); setGateStep(2); return
     }
     if (step === 2) { setGateData(prev => ({ ...prev, role: value }));    setGateStep(3); return }
     if (step === 3) { setGateData(prev => ({ ...prev, idea: value }));    setGateStep(4); return }
@@ -580,16 +564,12 @@ export default function Home() {
   const handleIdeaSelect = (idea: ProjectIdea) => {
     if (!intakeData || isRunning) return
     const selectedProject: SelectedProject = {
-      title:              idea.title,
-      description:        idea.one_liner,
-      techStack:          idea.tech_stack || [],
-      level:              idea.level,
-      buildTime:          idea.build_time,
-      skillsDemonstrated: idea.skills_demonstrated || [],
-      risks:              [],
-      portfolioValue:     idea.why_good || '',
-      fullIdea:           `${idea.title} — ${idea.one_liner}`,
-      projectId:          activeProjectId || '',
+      title: idea.title, description: idea.one_liner,
+      techStack: idea.tech_stack || [], level: idea.level,
+      buildTime: idea.build_time, skillsDemonstrated: idea.skills_demonstrated || [],
+      risks: [], portfolioValue: idea.why_good || '',
+      fullIdea: `${idea.title} — ${idea.one_liner}`,
+      projectId: activeProjectId || '',
     }
     addMsg({ type: 'user', text: `Selected: ${idea.title}` })
     showConfirmationGate(selectedProject)
@@ -598,48 +578,44 @@ export default function Home() {
   // ── Build handlers ────────────────────────────
 
   const handleBuildOriginal = (projectId: string, originalIdea: string, verdict?: Verdict) => {
-    const sp: SelectedProject = {
+    showConfirmationGate({
       title: originalIdea.slice(0, 60).trim(), description: originalIdea,
       techStack: verdict?.recommended_stack || [], level: 'Intermediate',
       buildTime: verdict?.estimated_build_time || '6 weeks', skillsDemonstrated: [],
       risks: verdict?.top_risks || [], portfolioValue: verdict?.career_value || '',
       fullIdea: originalIdea, projectId,
-    }
-    showConfirmationGate(sp)
+    })
   }
 
   const handleBuildSuggested = (projectId: string, pivotIdea: string, verdict?: Verdict) => {
-    const sp: SelectedProject = {
+    showConfirmationGate({
       title: pivotIdea.slice(0, 60).trim(), description: pivotIdea,
       techStack: verdict?.recommended_stack || [], level: 'Intermediate',
       buildTime: verdict?.estimated_build_time || '6 weeks', skillsDemonstrated: [],
       risks: [], portfolioValue: verdict?.career_value || '',
       fullIdea: pivotIdea, projectId,
-    }
-    showConfirmationGate(sp)
+    })
   }
 
   const handleBuildImproved = (projectId: string, deepAnalysis: DeepAnalysisResult) => {
     const bp = deepAnalysis.improved_blueprint
-    const sp: SelectedProject = {
+    showConfirmationGate({
       title: bp?.title || 'Improved Version', description: bp?.description || '',
       techStack: bp?.recommended_stack || [], level: 'Intermediate',
       buildTime: `${bp?.estimated_weeks || 6} weeks`, skillsDemonstrated: [],
       risks: [], portfolioValue: bp?.resume_bullet || '',
       fullIdea: `${bp?.title} — ${bp?.description}`, projectId,
-    }
-    showConfirmationGate(sp)
+    })
   }
 
   const handleBuildApproved = (projectId: string, idea: string, verdict?: Verdict) => {
-    const sp: SelectedProject = {
+    showConfirmationGate({
       title: idea.slice(0, 60).trim(), description: idea,
       techStack: verdict?.recommended_stack || [], level: 'Intermediate',
       buildTime: verdict?.estimated_build_time || '6 weeks', skillsDemonstrated: [],
       risks: verdict?.top_risks || [], portfolioValue: verdict?.career_value || '',
       fullIdea: idea, projectId,
-    }
-    showConfirmationGate(sp)
+    })
   }
 
   // ── Reset ─────────────────────────────────────
@@ -663,33 +639,11 @@ export default function Home() {
     setDiscussionMsgId(null)
     setIsDiscussing(false)
     setDbProjectId(null)
+    setActiveSessionId(null)
+    setShowNewSession(false)
     window.history.pushState({}, '', '/')
   }
-  const handleStartNewSession = async () => {
-    if (!dbProjectId) return
-    setShowNewSession(false)
-    // Create new session
-    const currentStageNum = 6
-    const session = await createSession(
-      dbProjectId,
-      currentStageNum,
-      'planning',
-    )
-    if (session) {
-      setActiveSessionId(session.id)
-    }
-    // Clear messages but keep project context
-    setMessages([])
-    setSelectionMade(false)
-    setPendingProject(null)
-    setConfirmGateMsgId(null)
-    setDiscussionMsgId(null)
-    setIsDiscussing(false)
-    addMsg({
-      type:   'chosen',
-      choice: '→ New session started — project memory preserved',
-    })
-  }
+
   // ── Edit ──────────────────────────────────────
 
   const handleEditStart = (msgId: string, text: string) => {
@@ -713,10 +667,7 @@ export default function Home() {
     const msgIndex = messages.findIndex(m => m.id === msgId)
     if (msgIndex === -1) return
     const newId = Math.random().toString(36).slice(2)
-    setMessages(prev => [
-      ...prev.slice(0, msgIndex),
-      { id: newId, content: { type: 'user', text: newText } },
-    ])
+    setMessages(prev => [...prev.slice(0, msgIndex), { id: newId, content: { type: 'user', text: newText } }])
     if (intakeData) await runFlow2(newText, intakeData)
   }
 
@@ -736,9 +687,7 @@ export default function Home() {
         return (
           <div className="flex justify-end">
             <div className="bg-[#1c2333] border border-[#f0b429]/20 rounded-2xl rounded-tr-sm p-3 max-w-sm w-full">
-              <textarea
-                value={editText}
-                onChange={e => setEditText(e.target.value)}
+              <textarea value={editText} onChange={e => setEditText(e.target.value)}
                 onKeyDown={e => {
                   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleEditSubmit(msg.id) }
                   if (e.key === 'Escape') { setEditingId(null); setEditText('') }
@@ -787,19 +736,16 @@ export default function Home() {
       const isGateShowing = !!pendingProject
       if (content.deepAnalysis) {
         return (
-          <DeepAnalysisCard
-            analysis={content.deepAnalysis} originalIdea={content.originalIdea}
+          <DeepAnalysisCard analysis={content.deepAnalysis} originalIdea={content.originalIdea}
             pivotIdea={content.pivotIdea} projectId={content.projectId}
             onBuildOriginal={() => handleBuildOriginal(content.projectId, content.originalIdea, content.verdict)}
             onBuildImproved={() => handleBuildImproved(content.projectId, content.deepAnalysis!)}
             onMoreAlternatives={handleMoreOptions}
-            disabled={selectionMade || isRunning || isGateShowing}
-          />
+            disabled={selectionMade || isRunning || isGateShowing} />
         )
       }
       return (
-        <ComparisonCard
-          projectId={content.projectId} originalIdea={content.originalIdea}
+        <ComparisonCard projectId={content.projectId} originalIdea={content.originalIdea}
           pivotIdea={content.pivotIdea} originalPros={content.originalPros}
           originalCons={content.originalCons} suggestedPros={content.suggestedPros}
           suggestedCons={content.suggestedCons}
@@ -811,8 +757,7 @@ export default function Home() {
           onBuildOriginal={() => handleBuildOriginal(content.projectId, content.originalIdea, content.verdict)}
           onBuildSuggested={() => handleBuildSuggested(content.projectId, content.pivotIdea, content.verdict)}
           onMoreAlternatives={handleMoreOptions}
-          disabled={selectionMade || isRunning || isGateShowing}
-        />
+          disabled={selectionMade || isRunning || isGateShowing} />
       )
     }
 
@@ -820,14 +765,12 @@ export default function Home() {
       const isGateShowing = !!pendingProject
       if (content.deepAnalysis) {
         return (
-          <DeepAnalysisCard
-            analysis={content.deepAnalysis} originalIdea={content.idea} pivotIdea=""
+          <DeepAnalysisCard analysis={content.deepAnalysis} originalIdea={content.idea} pivotIdea=""
             projectId={content.projectId}
             onBuildOriginal={() => handleBuildApproved(content.projectId, content.idea, content.verdict)}
             onBuildImproved={() => handleBuildImproved(content.projectId, content.deepAnalysis!)}
             onMoreAlternatives={handleMoreOptions}
-            disabled={selectionMade || isRunning || isGateShowing}
-          />
+            disabled={selectionMade || isRunning || isGateShowing} />
         )
       }
       return (
@@ -835,8 +778,7 @@ export default function Home() {
           pros={content.pros} minorCons={content.minorCons}
           onBuild={() => handleBuildApproved(content.projectId, content.idea, content.verdict)}
           onMoreAlternatives={handleMoreOptions}
-          disabled={selectionMade || isRunning || isGateShowing}
-        />
+          disabled={selectionMade || isRunning || isGateShowing} />
       )
     }
 
@@ -893,9 +835,9 @@ export default function Home() {
     return null
   }
 
-  // ── Loading screen ────────────────────────────
+  // ── Loading ───────────────────────────────────
 
-  if (isLoadingProject) {
+  if (isInitializing || isLoadingProject) {
     return (
       <div className="flex items-center justify-center h-screen bg-[#0d1117]">
         <div className="text-center">
@@ -905,34 +847,35 @@ export default function Home() {
                 className="w-2 h-2 rounded-full bg-[#f0b429] animate-pulse" />
             ))}
           </div>
-          <p className="text-xs text-[#484f58] font-mono">Loading project...</p>
+          <p className="text-xs text-[#484f58] font-mono">Loading...</p>
         </div>
       </div>
     )
   }
 
+  // ── Sidebar props ─────────────────────────────
+
+  const sidebarProps = {
+    activeProjectId: dbProjectId,
+    activeSessionId,
+    onProjectSelect: (project: any) => { window.location.href = `/?project=${project.id}` },
+    onSessionSelect: (project: any, sessionId: string) => {
+      window.location.href = `/?project=${project.id}&session=${sessionId}`
+    },
+    onNewProject:  handleRethink,
+    onSignOut:     handleSignOut,
+    role:          gateData.role,
+    purpose:       gateData.purpose,
+    isCollapsed:   !sidebarOpen,
+    onToggle:      () => setSidebarOpen(!sidebarOpen),
+  }
+
   // ── Gate screen ───────────────────────────────
-  // Prevent double render during hydration
-  if (typeof window === 'undefined') return null
+
   if (gateStep < 5) {
     return (
       <div className="flex h-screen bg-[#0d1117] text-[#e6edf3] overflow-hidden">
-
-        {/* Sidebar — always visible */}
-        <Sidebar
-          activeProjectId={dbProjectId}
-          onProjectSelect={(project) => {
-            window.location.href = `/?project=${project.id}`
-          }}
-          onNewProject={handleRethink}
-          onSignOut={handleSignOut}
-          role={gateData.role}
-          purpose={gateData.purpose}
-          isCollapsed={!sidebarOpen}
-          onToggle={() => setSidebarOpen(!sidebarOpen)}
-        />
-
-        {/* Main content */}
+        <Sidebar {...sidebarProps} />
         <div className="flex flex-col flex-1 min-w-0 h-screen">
           <header className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-[#21262d]">
             <div className="flex items-center gap-2">
@@ -991,28 +934,9 @@ export default function Home() {
 
   return (
     <div className="flex h-screen bg-[#0d1117] text-[#e6edf3] overflow-hidden">
+      <Sidebar {...sidebarProps} />
 
-      {/* Sidebar */}
-      <Sidebar
-        activeProjectId={dbProjectId}
-        activeSessionId={activeSessionId}
-        onProjectSelect={(project) => {
-          window.location.href = `/?project=${project.id}`
-        }}
-        onSessionSelect={(project, sessionId) => {
-          window.location.href = `/?project=${project.id}&session=${sessionId}`
-        }}
-        onNewProject={handleRethink}
-        onSignOut={handleSignOut}
-        role={gateData.role}
-        purpose={gateData.purpose}
-        isCollapsed={!sidebarOpen}
-        onToggle={() => setSidebarOpen(!sidebarOpen)}
-      />
-
-      {/* Main content */}
       <div className="flex flex-col flex-1 min-w-0 h-screen">
-
         <header className="flex-shrink-0 flex items-center justify-between px-5 py-3.5 border-b border-[#21262d] bg-[#0d1117]/95 backdrop-blur-sm sticky top-0 z-10">
           <div className="flex items-center gap-3">
             {!sidebarOpen && (
@@ -1098,9 +1022,7 @@ export default function Home() {
         <footer className="flex-shrink-0 border-t border-[#21262d] bg-[#0d1117] px-5 py-4">
           <div className="max-w-3xl mx-auto">
             <div className="flex gap-2 bg-[#161b22] border border-[#30363d] rounded-xl px-4 py-3 focus-within:border-[#484f58] transition-colors">
-              <textarea
-                value={input}
-                onChange={e => setInput(e.target.value)}
+              <textarea value={input} onChange={e => setInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
                 placeholder={
                   gateStep < 5 ? 'Complete the setup above first...'
@@ -1112,11 +1034,9 @@ export default function Home() {
                 className="flex-1 bg-transparent text-sm text-[#e6edf3] placeholder-[#484f58] outline-none resize-none leading-relaxed disabled:opacity-40"
               />
               <div className="flex flex-col justify-end">
-                <button
-                  onClick={handleSend}
+                <button onClick={handleSend}
                   disabled={isRunning || !input.trim() || gateStep < 5 || !!pendingProject || isDiscussing}
-                  className="px-4 py-2 bg-[#f0b429] text-[#0d1117] font-semibold rounded-lg hover:bg-[#e0a419] disabled:opacity-30 disabled:cursor-not-allowed transition-all text-sm"
-                >
+                  className="px-4 py-2 bg-[#f0b429] text-[#0d1117] font-semibold rounded-lg hover:bg-[#e0a419] disabled:opacity-30 disabled:cursor-not-allowed transition-all text-sm">
                   {isRunning ? (
                     <span className="flex items-center gap-1">
                       {[0,1,2].map(i => (

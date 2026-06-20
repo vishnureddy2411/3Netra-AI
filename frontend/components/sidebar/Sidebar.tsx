@@ -45,7 +45,8 @@ export default function Sidebar({
 
   // Load projects on mount
   useEffect(() => {
-    loadProjects()
+    const timer = setTimeout(() => loadProjects(), 500)
+    return () => clearTimeout(timer)
   }, [])
 
   // Filter projects when search or filter changes
@@ -77,9 +78,10 @@ export default function Sidebar({
       setProjects(data)
     } catch {
       setProjects([])
-    } finally {
       setIsLoading(false)
+      return
     }
+    setIsLoading(false)
   }
 
   // Count by status for filter tabs
