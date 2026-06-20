@@ -1,459 +1,481 @@
 """
 backend/services/council.py
 
-War Room Council — 5 advisors debate the research report,
-peer review each other, then Chairman delivers final verdict.
+PERMANENT FIX for pivot_suggestion never being null:
+  Level 1: Chairman prompt explicitly forbids null
+  Level 2: ensure_pivot_suggestion() runs as fallback
+  Level 3: Emergency fallback in run_war_room
 
-Flow:
-  1. All 5 advisors read research report simultaneously (asyncio.gather)
-  2. Peer review round — each advisor flags weak claims in others' outputs
-  3. Chairman synthesizes everything into BUILD/PIVOT/ABANDON verdict
-
-Why adversarial:
-  One AI opinion = one bias. Five specialized opinions = balanced view.
-  Peer review = weak claims removed before Chairman sees them.
-  Result = higher quality verdict than any single model call.
-
-Cost breakdown:
-  5 advisors × Haiku = ~$0.02
-  1 peer review × Haiku = ~$0.01
-  1 Chairman × Sonnet = ~$0.04
-  Total War Room = ~$0.07 per session
+This means comparison card will ALWAYS have content to show.
 """
 
 import asyncio
 import json
 import logging
-from datetime import datetime
-from typing import Optional
-
-from pydantic import BaseModel
+import re
+import time
 
 logger = logging.getLogger(__name__)
 
 
-# ════════════════════════════════════════════════════════════
-# OUTPUT MODELS
-# ════════════════════════════════════════════════════════════
+def get_advisor_prompts(purpose: str, role: str) -> dict:
+    purpose_context = {
+        "portfolio": f"The user wants to get hired as {role or 'a software engineer'} and is building a portfolio project. Evaluate through the lens of what impresses hiring managers, passes ATS screening, and gets interviews.",
+        "startup": "The user wants to build a real business. Evaluate through market opportunity and sustainable competitive advantage.",
+        "learning": f"The user wants to learn{' for ' + role if role else ''}. Evaluate through the lens of the best skill-building path.",
+    }.get(purpose, f"The user wants to build a project{' for ' + role + ' roles' if role else ''}.")
 
-class AdvisorOutput(BaseModel):
-    """What each advisor returns after reading the research."""
-    advisor_role: str
-    recommendation: str        # BUILD, PIVOT, or ABANDON
-    key_insight: str           # their most important point
-    top_concern: str           # their biggest worry
-    v1_suggestion: str         # what V1 should focus on
-    confidence: int            # 1-10 how confident they are
-    data_citations: list[str]  # specific numbers cited from research
+    return {
+        "tech_lead": f"""{purpose_context}
 
+You are a Senior Tech Lead with 15 years of production engineering experience.
+Evaluate technical feasibility, build complexity, and stack appropriateness.
+Name actual technologies. Be specific about build challenges and timelines.
 
-class PeerReviewOutput(BaseModel):
-    """Result of peer review round."""
-    flags: list[str]           # unsupported claims found
-    consensus_points: list[str]  # points all advisors agreed on
-    major_disagreements: list[str]  # points advisors disagreed on
+Return ONLY this JSON:
+{{
+    "advisor": "tech_lead",
+    "stance": "BUILD or PIVOT or ABANDON",
+    "confidence": "high or medium or low",
+    "key_finding": "one specific concrete technical finding about THIS exact project",
+    "evidence": "specific technical reasoning naming actual technologies and patterns",
+    "recommended_stack": ["tech1", "tech2", "tech3", "tech4", "tech5"],
+    "missing_tech": ["missing technology for this purpose"],
+    "timeline_weeks": 6,
+    "risk": "one specific technical risk for THIS project",
+    "recommendation": "one concrete actionable technical suggestion",
+    "enhanced_version": "one sentence: a more impressive version of this project using specific technologies"
+}}""",
 
+        "market_analyst": f"""{purpose_context}
 
-class ChairmanVerdict(BaseModel):
-    """Final verdict from Chairman after synthesizing all inputs."""
-    verdict: str               # BUILD, PIVOT, or ABANDON
-    verdict_reasoning: str     # why this verdict
-    role_match_score: int      # 0-100 how well idea matches target role
-    role_match_reasoning: str  # why this score
-    v1_scope: list[str]        # exactly what to build in V1 (3-5 items)
-    v2_features: list[str]     # what to defer to V2
-    recommended_stack: list[str]  # tech stack recommendation
-    estimated_build_time: str  # realistic timeline
-    career_value: str          # how this helps career
-    pivot_suggestion: Optional[str]  # if PIVOT, what to pivot to
-    top_risks: list[str]       # top 3 risks to address
+You are a Market Research Analyst specialized in developer tools and technical products.
+Evaluate market size, competition, and opportunity with specific signals.
+Name actual competing products and specific market dynamics.
 
+Return ONLY this JSON:
+{{
+    "advisor": "market_analyst",
+    "stance": "BUILD or PIVOT or ABANDON",
+    "confidence": "high or medium or low",
+    "key_finding": "one specific market insight about THIS project space",
+    "evidence": "specific market signals — name actual competitors or trends",
+    "competition_level": "low or medium or high",
+    "specific_competitors": ["competitor1", "competitor2"],
+    "market_gap": "specific unmet need this could address",
+    "risk": "one specific market risk",
+    "recommendation": "one concrete market positioning suggestion",
+    "enhanced_version": "one sentence: a more differentiated version targeting the identified gap"
+}}""",
 
-# ════════════════════════════════════════════════════════════
-# ADVISOR SYSTEM PROMPTS
-# ════════════════════════════════════════════════════════════
+        "risk_manager": f"""{purpose_context}
 
-ADVISOR_PROMPTS = {
-    "tech_lead": """You are a Senior Tech Lead with 15 years experience.
-You evaluate projects for technical feasibility and complexity.
-Focus on: tech stack complexity, build timeline, technical debt risks,
-infrastructure needs, scalability challenges, and what can realistically
-be built by one developer in 4-6 weeks for a portfolio project.
-Be direct and honest. Do not sugarcoat technical difficulty.""",
+You are a Risk Manager who finds project failure modes before they happen.
+Be pessimistic. Find what others miss. Name specific failure scenarios.
 
-    "market_analyst": """You are a Market Research Analyst specialized in developer tools.
-You evaluate market opportunity and competitive landscape.
-Focus on: market size, existing competition strength, monetization potential,
-user acquisition difficulty, and whether there is a real gap in the market.
-Always cite specific data from the research. Be skeptical of crowded markets.""",
+Return ONLY this JSON:
+{{
+    "advisor": "risk_manager",
+    "stance": "BUILD or PIVOT or ABANDON",
+    "confidence": "high or medium or low",
+    "key_finding": "the single biggest risk for THIS specific project",
+    "evidence": "specific reasoning about why this risk is real",
+    "top_risks": [
+        "specific risk 1 with concrete consequence",
+        "specific risk 2 with concrete consequence",
+        "specific risk 3 with concrete consequence"
+    ],
+    "fatal_flaw": "the one thing that could completely kill this project",
+    "risk": "one specific execution risk",
+    "recommendation": "one concrete risk mitigation suggestion",
+    "enhanced_version": "one sentence: a version of this project that avoids the fatal flaw"
+}}""",
 
-    "risk_manager": """You are a Risk Manager who identifies project failure modes.
-You evaluate technical, market, legal, and execution risks.
-Focus on: what could kill this project, regulatory risks, dependency risks,
-API cost risks at scale, competition response, and founder single points of failure.
-Be pessimistic by nature — your job is to find what others miss.""",
+        "ux_designer": f"""{purpose_context}
 
-    "ux_designer": """You are a Senior UX Designer and product strategist.
-You evaluate user experience and product-market fit.
-Focus on: who the target user is, what their pain point is, how intuitive
-the product would be, what the onboarding experience looks like, and
-whether users would return after the first session.
-Think from the user's perspective, not the builder's.""",
+You are a Senior UX Designer and product strategist.
+Think from the actual user's perspective. Be specific about who uses this and why.
 
-    "career_coach": """You are a Career Coach specialized in software engineering careers.
-You evaluate how well this project matches the user's career goals.
-Focus on: does this project use technologies employers want to see,
-will it stand out in a portfolio, what skills it demonstrates,
-whether it matches the target role, and how to present it on a resume.
-Be practical — think about what actually gets candidates hired.""",
-}
+Return ONLY this JSON:
+{{
+    "advisor": "ux_designer",
+    "stance": "BUILD or PIVOT or ABANDON",
+    "confidence": "high or medium or low",
+    "key_finding": "one specific UX or product insight about THIS project",
+    "evidence": "specific reasoning about users and value proposition",
+    "target_user": "specific description of who would actually use this",
+    "core_value_prop": "one sentence why someone chooses this over alternatives",
+    "v1_features": [
+        "essential MVP feature 1",
+        "essential MVP feature 2",
+        "essential MVP feature 3"
+    ],
+    "risk": "one specific UX or product risk",
+    "recommendation": "one concrete product improvement suggestion",
+    "enhanced_version": "one sentence: a version with stronger product differentiation"
+}}""",
 
+        "career_coach": f"""{purpose_context}
 
-# ════════════════════════════════════════════════════════════
-# SINGLE ADVISOR CALL
-# ════════════════════════════════════════════════════════════
+You are a Career Coach who has helped 500+ engineers get hired at top companies.
+You know exactly what gets resumes shortlisted and what gets them ignored.
+
+Return ONLY this JSON:
+{{
+    "advisor": "career_coach",
+    "stance": "BUILD or PIVOT or ABANDON",
+    "confidence": "high or medium or low",
+    "key_finding": "one specific career insight about THIS project for {role}",
+    "evidence": "specific reasoning about career impact and hiring signals",
+    "skills_demonstrated": [
+        "specific skill 1 this project proves",
+        "specific skill 2 this project proves",
+        "specific skill 3 this project proves"
+    ],
+    "skills_missing": [
+        "important skill for {role} NOT demonstrated by this project"
+    ],
+    "career_value": "one sentence on career ROI of building this",
+    "role_match_score": 72,
+    "risk": "one specific career risk of building this project",
+    "recommendation": "one concrete career-focused improvement suggestion",
+    "enhanced_version": "one sentence: a version with stronger career signal for {role}"
+}}""",
+    }
+
 
 async def call_advisor(
-    advisor_role: str,
+    advisor_name: str,
     system_prompt: str,
     research_report: str,
     idea: str,
     target_role: str,
-) -> AdvisorOutput:
-    """
-    Calls one advisor with the research report.
-    Returns structured AdvisorOutput.
-
-    ELI5: One specialist reads the research and gives their expert opinion.
-    Uses Haiku because this is opinion generation, not complex reasoning.
-    """
-    from services.llm_client import call_fast
-
-    user_prompt = f"""PROJECT IDEA: {idea}
-TARGET ROLE: {target_role}
-
-RESEARCH REPORT:
-{research_report[:6000]}
-
-As the {advisor_role.replace('_', ' ').title()}, analyze this project idea.
-
-Respond in this exact JSON format:
-{{
-    "advisor_role": "{advisor_role}",
-    "recommendation": "BUILD or PIVOT or ABANDON",
-    "key_insight": "your single most important insight in one sentence",
-    "top_concern": "your biggest concern in one sentence",
-    "v1_suggestion": "what V1 should focus on in one sentence",
-    "confidence": 7,
-    "data_citations": ["specific number or fact from research", "another specific fact"]
-}}
-
-Be specific. Cite exact numbers from the research. One sentence per field."""
-
+) -> dict:
     try:
+        from services.llm_client import call_fast
+
         response = await call_fast(
             system=system_prompt,
-            user=user_prompt,
-            max_tokens=400,
+            user=f"""IDEA TO EVALUATE: {idea}
+TARGET ROLE: {target_role}
+MARKET RESEARCH: {research_report[:1500] if research_report else 'No research data'}
+
+Evaluate this specific idea. Return ONLY the JSON structure. No markdown, no explanation.""",
+            max_tokens=600,
         )
 
-        # Parse JSON response
-        import re
-        json_match = re.search(r'\{.*\}', response, re.DOTALL)
-        if json_match:
-            data = json.loads(json_match.group())
-            return AdvisorOutput(**data)
+        cleaned = re.sub(r'```json\s*', '', response)
+        cleaned = re.sub(r'```\s*', '', cleaned).strip()
+        match = re.search(r'\{.*\}', cleaned, re.DOTALL)
 
-        # Fallback if JSON parsing fails
-        logger.warning(f"Advisor {advisor_role} returned non-JSON, using fallback")
-        return AdvisorOutput(
-            advisor_role=advisor_role,
-            recommendation="PIVOT",
-            key_insight=response[:200],
-            top_concern="Could not parse structured response",
-            v1_suggestion="Focus on core MVP features",
-            confidence=5,
-            data_citations=[],
-        )
+        if match:
+            data = json.loads(match.group())
+            logger.info(f"{advisor_name}: {data.get('stance')} ({data.get('confidence')})")
+            return data
+
+        logger.warning(f"{advisor_name} returned unparseable response")
+        return {
+            "advisor": advisor_name,
+            "stance": "PIVOT",
+            "confidence": "low",
+            "key_finding": "Could not parse response",
+            "evidence": "",
+            "risk": "Unknown",
+            "recommendation": "",
+            "enhanced_version": "",
+        }
 
     except Exception as e:
-        logger.error(f"Advisor {advisor_role} failed: {e}")
-        return AdvisorOutput(
-            advisor_role=advisor_role,
-            recommendation="PIVOT",
-            key_insight=f"Analysis failed: {str(e)}",
-            top_concern="Advisor call failed",
-            v1_suggestion="Retry analysis",
-            confidence=1,
-            data_citations=[],
-        )
+        logger.error(f"Advisor {advisor_name} failed: {e}")
+        return {
+            "advisor": advisor_name,
+            "stance": "PIVOT",
+            "confidence": "low",
+            "key_finding": f"Error: {str(e)[:100]}",
+            "evidence": "",
+            "risk": "Advisor unavailable",
+            "recommendation": "",
+            "enhanced_version": "",
+        }
 
 
-# ════════════════════════════════════════════════════════════
-# PEER REVIEW ROUND
-# ════════════════════════════════════════════════════════════
-
-async def run_peer_review(
-    advisor_outputs: list[AdvisorOutput],
-    research_report: str,
-) -> PeerReviewOutput:
-    """
-    Each advisor's output is reviewed for unsupported claims.
-    Flags any claim not backed by research data.
-    Identifies consensus points and major disagreements.
-
-    ELI5: After all 5 advisors give their opinion, we check:
-    - Did anyone make up facts not in the research?
-    - What did everyone agree on?
-    - Where did they strongly disagree?
-    """
-    from services.llm_client import call_fast
-
-    outputs_text = "\n\n".join([
-        f"ADVISOR {i+1} ({out.advisor_role}):\n"
-        f"Recommendation: {out.recommendation}\n"
-        f"Key Insight: {out.key_insight}\n"
-        f"Top Concern: {out.top_concern}\n"
-        f"Citations: {', '.join(out.data_citations)}"
-        for i, out in enumerate(advisor_outputs)
-    ])
-
-    recommendations = [out.recommendation for out in advisor_outputs]
-    build_count = recommendations.count("BUILD")
-    pivot_count = recommendations.count("PIVOT")
-    abandon_count = recommendations.count("ABANDON")
-
-    user_prompt = f"""Review these 5 advisor outputs for a project.
-Voting: BUILD={build_count}, PIVOT={pivot_count}, ABANDON={abandon_count}
-
-ADVISOR OUTPUTS:
-{outputs_text[:4000]}
-
-RESEARCH DATA (ground truth):
-{research_report[:2000]}
-
-Respond in this exact JSON format:
-{{
-    "flags": ["any claim not supported by research data", "another unsupported claim"],
-    "consensus_points": ["point all advisors agreed on", "another consensus point"],
-    "major_disagreements": ["area where advisors strongly disagreed", "another disagreement"]
-}}
-
-Keep each item to one clear sentence. Maximum 3 items per list."""
-
+async def run_peer_review(advisor_outputs: list[dict], idea: str) -> str:
     try:
+        from services.llm_client import call_fast
+
+        stances = [
+            f"{a.get('advisor')}: {a.get('stance')} — {a.get('key_finding', '')}"
+            for a in advisor_outputs
+        ]
+
         response = await call_fast(
-            system="You are a fact-checker. Only flag claims not supported by the provided research data.",
-            user=user_prompt,
-            max_tokens=400,
+            system="Synthesize expert advisor findings. Be concise and specific. Reference advisors by name.",
+            user=f"""Idea: {idea}
+
+Findings:
+{chr(10).join(stances)}
+
+In 2-3 sentences: where do advisors agree, where disagree, and what is the single most important finding?""",
+            max_tokens=200,
         )
-
-        import re
-        json_match = re.search(r'\{.*\}', response, re.DOTALL)
-        if json_match:
-            data = json.loads(json_match.group())
-            return PeerReviewOutput(**data)
-
-        return PeerReviewOutput(
-            flags=[],
-            consensus_points=["Peer review parsing failed"],
-            major_disagreements=[],
-        )
-
+        return response.strip()
     except Exception as e:
         logger.error(f"Peer review failed: {e}")
-        return PeerReviewOutput(
-            flags=[],
-            consensus_points=[],
-            major_disagreements=[f"Peer review error: {str(e)}"],
-        )
+        stances = [f"{a.get('advisor')}: {a.get('stance')}" for a in advisor_outputs]
+        return f"Advisor stances: {', '.join(stances)}"
 
 
-# ════════════════════════════════════════════════════════════
-# CHAIRMAN SYNTHESIS
-# ════════════════════════════════════════════════════════════
-
-async def run_chairman(
+async def ensure_pivot_suggestion(
     idea: str,
-    target_role: str,
-    advisor_outputs: list[AdvisorOutput],
-    peer_review: PeerReviewOutput,
-    research_report: str,
-) -> ChairmanVerdict:
+    verdict: str,
+    role: str,
+    enhanced_versions: list[str],
+) -> str:
     """
-    Chairman reads all advisor outputs + peer review and delivers final verdict.
-    Uses Sonnet (not Haiku) because this requires deep reasoning and synthesis.
+    PERMANENT GUARANTEE: pivot_suggestion is NEVER null.
 
-    ELI5: After all advisors debate, the CEO reads everything and makes
-    the final decision. This is the most important call in the entire product.
-    It determines whether the user builds, pivots, or abandons the idea.
+    Priority order:
+    1. Use advisor enhanced_version suggestions (already generated, free)
+    2. Generate via Haiku call (cheap fallback)
+    3. String concatenation (emergency fallback, never fails)
     """
-    from services.llm_client import call_strong
+    # Priority 1: Use advisor enhanced versions
+    valid = [e for e in enhanced_versions if e and len(str(e).strip()) > 20]
+    if valid:
+        logger.info(f"Using advisor enhanced_version as pivot: {valid[0][:60]}")
+        return valid[0].strip()
 
-    recommendations = [out.recommendation for out in advisor_outputs]
-    build_count = recommendations.count("BUILD")
-    pivot_count = recommendations.count("PIVOT")
-    abandon_count = recommendations.count("ABANDON")
-
-    advisor_summary = "\n\n".join([
-        f"{out.advisor_role.upper()}:\n"
-        f"Vote: {out.recommendation} (confidence: {out.confidence}/10)\n"
-        f"Key insight: {out.key_insight}\n"
-        f"Top concern: {out.top_concern}\n"
-        f"V1 suggestion: {out.v1_suggestion}"
-        for out in advisor_outputs
-    ])
-
-    user_prompt = f"""You are the Chairman of a technical advisory board.
-Make the final verdict on this project idea.
-
-PROJECT: {idea}
-TARGET ROLE: {target_role}
-
-ADVISOR VOTES: BUILD={build_count}, PIVOT={pivot_count}, ABANDON={abandon_count}
-
-ADVISOR INPUTS:
-{advisor_summary}
-
-PEER REVIEW FLAGS:
-{json.dumps(peer_review.flags)}
-
-CONSENSUS POINTS:
-{json.dumps(peer_review.consensus_points)}
-
-RESEARCH SUMMARY:
-{research_report[:2000]}
-
-Respond in this exact JSON format:
-{{
-    "verdict": "BUILD or PIVOT or ABANDON",
-    "verdict_reasoning": "2-3 sentences explaining the verdict",
-    "role_match_score": 85,
-    "role_match_reasoning": "one sentence explaining score",
-    "v1_scope": ["feature 1", "feature 2", "feature 3"],
-    "v2_features": ["deferred feature 1", "deferred feature 2"],
-    "recommended_stack": ["technology 1", "technology 2", "technology 3"],
-    "estimated_build_time": "4-6 weeks for solo developer",
-    "career_value": "one sentence on portfolio/career value",
-    "pivot_suggestion": null,
-    "top_risks": ["risk 1", "risk 2", "risk 3"]
-}}
-
-Be decisive. Give a clear verdict with specific reasoning."""
-
+    # Priority 2: Generate via Haiku
     try:
-        response = await call_strong(
-            system="You are a decisive technical chairman. Make clear, specific recommendations.",
-            user=user_prompt,
-            max_tokens=800,
+        from services.llm_client import call_fast
+
+        prompt = f"""Original project idea: {idea}
+Expert verdict: {verdict}
+Target role: {role}
+
+Write ONE sentence describing a more impressive, differentiated, or enhanced version 
+of this project that would be stronger for someone targeting {role}.
+Be specific — name actual technologies or approaches.
+Return ONLY the one sentence."""
+
+        response = await call_fast(
+            system="You suggest specific enhanced project ideas in one sentence.",
+            user=prompt,
+            max_tokens=100,
         )
-
-        import re
-        json_match = re.search(r'\{.*\}', response, re.DOTALL)
-        if json_match:
-            data = json.loads(json_match.group())
-            return ChairmanVerdict(**data)
-
-        logger.error("Chairman returned non-JSON response")
-        return _fallback_verdict(idea, build_count, pivot_count, abandon_count)
-
+        result = response.strip()
+        if result and len(result) > 15:
+            logger.info(f"Generated pivot via Haiku: {result[:60]}")
+            return result
     except Exception as e:
-        logger.error(f"Chairman failed: {e}")
-        return _fallback_verdict(idea, build_count, pivot_count, abandon_count)
+        logger.error(f"Haiku pivot generation failed: {e}")
 
-
-def _fallback_verdict(
-    idea: str,
-    build_count: int,
-    pivot_count: int,
-    abandon_count: int,
-) -> ChairmanVerdict:
-    """Returns a basic verdict based on advisor vote counts if Chairman fails."""
-    if build_count >= 3:
-        verdict = "BUILD"
-    elif abandon_count >= 3:
-        verdict = "ABANDON"
-    else:
-        verdict = "PIVOT"
-
-    return ChairmanVerdict(
-        verdict=verdict,
-        verdict_reasoning=f"Based on advisor votes: BUILD={build_count}, PIVOT={pivot_count}, ABANDON={abandon_count}",
-        role_match_score=50,
-        role_match_reasoning="Could not generate detailed analysis",
-        v1_scope=["Core MVP feature", "Basic authentication", "Simple dashboard"],
-        v2_features=["Advanced features", "Analytics"],
-        recommended_stack=["Python", "FastAPI", "Next.js"],
-        estimated_build_time="4-6 weeks",
-        career_value="Demonstrates full-stack development skills",
-        pivot_suggestion=None,
-        top_risks=["Technical complexity", "Market competition", "Time constraints"],
+    # Priority 3: Emergency string fallback (never fails)
+    logger.warning("Using emergency string fallback for pivot_suggestion")
+    return (
+        f"Enhanced {idea[:40].strip()}... with production-grade monitoring, "
+        f"comprehensive test coverage, CI/CD pipeline, and Docker deployment "
+        f"demonstrating senior {role} engineering practices"
     )
 
 
-# ════════════════════════════════════════════════════════════
-# MAIN WAR ROOM FUNCTION
-# ════════════════════════════════════════════════════════════
+async def run_chairman(
+    advisor_outputs: list[dict],
+    peer_review: str,
+    idea: str,
+    target_role: str,
+    purpose: str,
+) -> dict:
+    try:
+        from services.llm_client import call_strong
+
+        tech = next((a for a in advisor_outputs if a.get('advisor') == 'tech_lead'), {})
+        mkt = next((a for a in advisor_outputs if a.get('advisor') == 'market_analyst'), {})
+        risk = next((a for a in advisor_outputs if a.get('advisor') == 'risk_manager'), {})
+        ux = next((a for a in advisor_outputs if a.get('advisor') == 'ux_designer'), {})
+        career = next((a for a in advisor_outputs if a.get('advisor') == 'career_coach'), {})
+
+        votes = {"BUILD": 0, "PIVOT": 0, "ABANDON": 0}
+        for a in advisor_outputs:
+            s = a.get("stance", "PIVOT").upper()
+            if s in votes:
+                votes[s] += 1
+
+        findings = f"""
+TECH LEAD ({tech.get('stance')}): {tech.get('key_finding')}
+  Recommended stack: {', '.join(tech.get('recommended_stack', []))}
+  Missing: {', '.join(tech.get('missing_tech', []))}
+  Timeline: {tech.get('timeline_weeks')} weeks
+  Enhanced version idea: {tech.get('enhanced_version')}
+
+MARKET ({mkt.get('stance')}): {mkt.get('key_finding')}
+  Competition: {mkt.get('competition_level')} | Competitors: {', '.join(mkt.get('specific_competitors', []))}
+  Market gap: {mkt.get('market_gap')}
+  Enhanced version idea: {mkt.get('enhanced_version')}
+
+RISK ({risk.get('stance')}): {risk.get('key_finding')}
+  Fatal flaw: {risk.get('fatal_flaw')}
+  Top risks: {'; '.join(risk.get('top_risks', []))}
+  Enhanced version idea: {risk.get('enhanced_version')}
+
+UX ({ux.get('stance')}): {ux.get('key_finding')}
+  Target user: {ux.get('target_user')}
+  V1 features: {'; '.join(ux.get('v1_features', []))}
+
+CAREER ({career.get('stance')}): {career.get('key_finding')}
+  Skills shown: {', '.join(career.get('skills_demonstrated', []))}
+  Skills missing: {', '.join(career.get('skills_missing', []))}
+  Role match score: {career.get('role_match_score', 50)}
+  Enhanced version idea: {career.get('enhanced_version')}
+
+PEER REVIEW: {peer_review}
+VOTES: BUILD={votes['BUILD']}, PIVOT={votes['PIVOT']}, ABANDON={votes['ABANDON']}"""
+
+        response = await call_strong(
+            system=f"""You are the Chairman of an expert engineering council.
+Your verdict must be SPECIFIC — reference actual technologies and advisor names.
+
+ABSOLUTE RULE — NO EXCEPTIONS:
+pivot_suggestion is ALWAYS REQUIRED. It must NEVER be null, empty, or missing.
+- For BUILD verdicts: pivot_suggestion = an enhanced next-level version of the approved idea
+- For PIVOT verdicts: pivot_suggestion = a specific alternative that fixes the fatal flaw
+- Minimum 15 words. Must name specific technologies or approaches.
+If you cannot think of one, use the "Enhanced version idea" from any advisor above.""",
+            user=f"""IDEA: {idea}
+ROLE: {target_role}
+PURPOSE: {purpose}
+
+ADVISOR FINDINGS:
+{findings}
+
+Return ONLY this JSON. pivot_suggestion MUST be a specific project description, NEVER null:
+{{
+    "verdict": "BUILD or PIVOT or ABANDON",
+    "verdict_reasoning": "2-3 sentences referencing at least 3 advisor names and their specific findings",
+    "role_match_score": {career.get('role_match_score', 55)},
+    "role_match_reasoning": "one sentence on this score referencing specific skills covered or missing",
+    "v1_scope": {json.dumps(ux.get('v1_features', ['Core feature', 'REST API', 'Basic UI', 'Tests'])[:4])},
+    "recommended_stack": {json.dumps(tech.get('recommended_stack', ['FastAPI', 'PostgreSQL', 'React', 'Docker']))},
+    "estimated_build_time": "{tech.get('timeline_weeks', 6)} weeks",
+    "career_value": "one specific sentence on career ROI from career coach findings",
+    "pivot_suggestion": "REQUIRED ALWAYS: specific enhanced or alternative project — minimum 15 words, never null or empty",
+    "top_risks": {json.dumps(risk.get('top_risks', [])[:3])}
+}}""",
+            max_tokens=800,
+        )
+
+        cleaned = re.sub(r'```json\s*', '', response)
+        cleaned = re.sub(r'```\s*', '', cleaned).strip()
+        match = re.search(r'\{.*\}', cleaned, re.DOTALL)
+
+        if match:
+            data = json.loads(match.group())
+
+            # LEVEL 2 GUARANTEE: Check and fix if chairman returned null anyway
+            pivot = data.get('pivot_suggestion', '')
+            if not pivot or len(str(pivot).strip()) < 15 or str(pivot).strip().upper() in ['NULL', 'NONE', 'N/A', 'REQUIRED ALWAYS']:
+                logger.warning("Chairman returned invalid pivot_suggestion — running ensure_pivot_suggestion")
+                enhanced_versions = [a.get('enhanced_version', '') for a in advisor_outputs]
+                data['pivot_suggestion'] = await ensure_pivot_suggestion(
+                    idea,
+                    data.get('verdict', 'BUILD'),
+                    target_role,
+                    enhanced_versions,
+                )
+
+            logger.info(
+                f"Chairman: {data.get('verdict')} | "
+                f"pivot: {str(data.get('pivot_suggestion', ''))[:50]}"
+            )
+            return data
+
+        raise ValueError("Could not parse chairman verdict JSON")
+
+    except Exception as e:
+        logger.error(f"Chairman failed: {e}")
+
+        votes = {"BUILD": 0, "PIVOT": 0, "ABANDON": 0}
+        for a in advisor_outputs:
+            s = a.get("stance", "PIVOT").upper()
+            if s in votes:
+                votes[s] += 1
+        majority = max(votes, key=lambda k: votes[k])
+
+        # LEVEL 3 GUARANTEE: Emergency fallback
+        enhanced_versions = [a.get('enhanced_version', '') for a in advisor_outputs]
+        pivot = await ensure_pivot_suggestion(idea, majority, target_role, enhanced_versions)
+
+        return {
+            "verdict": majority,
+            "verdict_reasoning": f"Based on advisor consensus: BUILD={votes['BUILD']}, PIVOT={votes['PIVOT']}, ABANDON={votes['ABANDON']}",
+            "role_match_score": 55,
+            "role_match_reasoning": "Estimated from advisor inputs — manual review recommended",
+            "v1_scope": ["Core feature implementation", "REST API endpoints", "Basic UI", "Unit tests"],
+            "recommended_stack": ["FastAPI", "PostgreSQL", "React", "Docker"],
+            "estimated_build_time": "6 weeks",
+            "career_value": "Demonstrates full-stack engineering and problem-solving capabilities",
+            "pivot_suggestion": pivot,
+            "top_risks": ["Scope creep risk", "Technical complexity underestimation", "Time constraints"],
+        }
+
 
 async def run_war_room(
     idea: str,
     target_role: str,
     research_report: str,
+    purpose: str = "portfolio",
 ) -> dict:
-    """
-    Main War Room function. Runs the complete council process.
+    start = time.time()
+    logger.info(f"War Room starting | purpose={purpose} | role={target_role} | idea={idea[:50]}")
 
-    Step 1: All 5 advisors run simultaneously (asyncio.gather)
-    Step 2: Peer review round
-    Step 3: Chairman synthesis
+    prompts = get_advisor_prompts(purpose, target_role)
 
-    Returns complete War Room result with all outputs and final verdict.
-
-    ELI5: Assembles the full expert panel, runs the debate,
-    and returns the Chairman's final decision with full reasoning.
-    """
-    logger.info(f"War Room started for: '{idea[:60]}'")
-    start_time = datetime.utcnow()
-
-    # Step 1: Run all 5 advisors simultaneously
-    logger.info("Step 1: Running 5 advisors in parallel...")
+    # 5 advisors in parallel
     advisor_outputs = await asyncio.gather(
-        call_advisor("tech_lead", ADVISOR_PROMPTS["tech_lead"], research_report, idea, target_role),
-        call_advisor("market_analyst", ADVISOR_PROMPTS["market_analyst"], research_report, idea, target_role),
-        call_advisor("risk_manager", ADVISOR_PROMPTS["risk_manager"], research_report, idea, target_role),
-        call_advisor("ux_designer", ADVISOR_PROMPTS["ux_designer"], research_report, idea, target_role),
-        call_advisor("career_coach", ADVISOR_PROMPTS["career_coach"], research_report, idea, target_role),
+        call_advisor("tech_lead", prompts["tech_lead"], research_report, idea, target_role),
+        call_advisor("market_analyst", prompts["market_analyst"], research_report, idea, target_role),
+        call_advisor("risk_manager", prompts["risk_manager"], research_report, idea, target_role),
+        call_advisor("ux_designer", prompts["ux_designer"], research_report, idea, target_role),
+        call_advisor("career_coach", prompts["career_coach"], research_report, idea, target_role),
     )
-    logger.info(f"Advisors complete. Votes: {[o.recommendation for o in advisor_outputs]}")
 
-    # Step 2: Peer review round
-    logger.info("Step 2: Running peer review...")
-    peer_review = await run_peer_review(advisor_outputs, research_report)
-    logger.info(f"Peer review complete. Flags: {len(peer_review.flags)}")
+    logger.info(f"All 5 advisors done in {time.time() - start:.1f}s")
 
-    # Step 3: Chairman synthesis
-    logger.info("Step 3: Chairman synthesizing verdict...")
+    peer_review = await run_peer_review(list(advisor_outputs), idea)
+    logger.info(f"Peer review done in {time.time() - start:.1f}s")
+
     verdict = await run_chairman(
-        idea=idea,
-        target_role=target_role,
-        advisor_outputs=advisor_outputs,
-        peer_review=peer_review,
-        research_report=research_report,
+        list(advisor_outputs),
+        peer_review,
+        idea,
+        target_role,
+        purpose,
     )
-    logger.info(f"Chairman verdict: {verdict.verdict}")
 
-    elapsed = (datetime.utcnow() - start_time).total_seconds()
+    # LEVEL 3 GUARANTEE: Final check before returning
+    if not verdict.get('pivot_suggestion') or len(str(verdict.get('pivot_suggestion', '')).strip()) < 15:
+        logger.error("CRITICAL: pivot_suggestion still null after all guarantees — running final fallback")
+        enhanced_versions = [a.get('enhanced_version', '') for a in advisor_outputs]
+        verdict['pivot_suggestion'] = await ensure_pivot_suggestion(
+            idea, verdict.get('verdict', 'BUILD'), target_role, enhanced_versions
+        )
+
+    votes = {"BUILD": 0, "PIVOT": 0, "ABANDON": 0}
+    for a in advisor_outputs:
+        s = a.get("stance", "PIVOT").upper()
+        if s in votes:
+            votes[s] += 1
+
+    elapsed = round(time.time() - start, 1)
+    logger.info(
+        f"War Room done: {verdict.get('verdict')} in {elapsed}s | "
+        f"pivot_suggestion present: {bool(verdict.get('pivot_suggestion'))}"
+    )
 
     return {
-        "idea": idea,
-        "target_role": target_role,
-        "elapsed_seconds": round(elapsed, 1),
-        "advisor_outputs": [o.model_dump() for o in advisor_outputs],
-        "peer_review": peer_review.model_dump(),
-        "verdict": verdict.model_dump(),
-        "votes": {
-            "BUILD": sum(1 for o in advisor_outputs if o.recommendation == "BUILD"),
-            "PIVOT": sum(1 for o in advisor_outputs if o.recommendation == "PIVOT"),
-            "ABANDON": sum(1 for o in advisor_outputs if o.recommendation == "ABANDON"),
-        },
+        "verdict": verdict,
+        "votes": votes,
+        "advisor_outputs": list(advisor_outputs),
+        "peer_review": peer_review,
+        "elapsed_seconds": elapsed,
     }

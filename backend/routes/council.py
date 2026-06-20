@@ -23,7 +23,7 @@ class CouncilRequest(BaseModel):
     project_id: str
     idea: str
     target_role: str = "Software Engineer"
-
+    purpose: str = "portfolio"
 
 @router.post("/council")
 async def council(request: Request, body: CouncilRequest):
@@ -80,6 +80,7 @@ async def council(request: Request, body: CouncilRequest):
             idea=body.idea,
             target_role=body.target_role,
             research_report=research_report,
+            purpose=body.purpose,
         )
 
         # Step 3: Save verdict to MCP
