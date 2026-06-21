@@ -18,6 +18,8 @@ import DiscussionCard from '../components/cards/DiscussionCard'
 import DiagramsCard from '../components/cards/DiagramsCard'
 import GraphCard from '../components/cards/GraphCard'
 import NewSessionCard from '../components/cards/NewSessionCard'
+import DownloadCard from '../components/cards/DownloadCard'
+import PreviewPanel from '../components/panels/PreviewPanel'
 import Sidebar from '../components/sidebar/Sidebar'
 import UserMenu from '../components/sidebar/UserMenu'
 
@@ -123,6 +125,11 @@ export default function Home() {
   const [isInitializing,        setIsInitializing]        = useState(true)
   const [activeSessionId,       setActiveSessionId]       = useState<string | null>(null)
   const [showNewSession,        setShowNewSession]        = useState(false)
+  const [sidebarRefresh,        setSidebarRefresh]        = useState(0)
+  const [viewingSession,        setViewingSession]        = useState<string | null>(null)
+  const [sessionHistory,        setSessionHistory]        = useState<Message[]>([])
+  const [isLoadingHistory,      setIsLoadingHistory]      = useState(false)
+  const [previewContent,        setPreviewContent]        = useState<any>(null)
 
   const bottomRef = useRef<HTMLDivElement>(null)
 
@@ -232,6 +239,7 @@ export default function Home() {
       const r4 = await runProjectGraph(projectId, chosenIdea)
       updateMsg(t4, { type: 'graph', summary: r4.result.summary, elapsed: r4.result.elapsed_seconds })
       addMsg({ type: 'complete', projectId })
+      setShowNewSession(true)
     } catch (err) {
       addMsg({ type: 'error', message: err instanceof Error ? err.message : 'Phase 2 failed' })
     } finally {
@@ -812,16 +820,25 @@ export default function Home() {
             <p className="text-xs text-[#484f58] font-mono">id: {content.projectId}</p>
           </div>
         </div>
-        <NewSessionCard
-          reason="pipeline_complete"
-          projectTitle={gateData.idea || 'Your Project'}
-          messageCount={messages.length}
-          onStartNewSession={handleStartNewSession}
-          onContinue={() => setShowNewSession(false)}
-        />
+        {!showNewSession ? null : (
+          <NewSessionCard
+            reason="pipeline_complete"
+            projectTitle={gateData.idea || 'Your Project'}
+            messageCount={messages.length}
+            onStartNewSession={handleStartNewSession}
+            onContinue={() => setShowNewSession(false)}
+          />
+        )}
       </div>
     )
-
+    if (content.type === 'download') return (
+      <DownloadCard
+        filename={content.filename}
+        content={content.content}
+        mimeType={content.mimeType}
+        label={content.label}
+      />
+    )
     if (content.type === 'error') return (
       <div className="flex items-start gap-3 bg-[#2d1b1b] border border-[#f8514926] rounded-xl px-4 py-3">
         <div className="w-1.5 h-1.5 rounded-full bg-[#f85149] flex-shrink-0 mt-1" />
@@ -858,9 +875,24 @@ export default function Home() {
   const sidebarProps = {
     activeProjectId: dbProjectId,
     activeSessionId,
+    refreshTrigger: sidebarRefresh,
     onProjectSelect: (project: any) => { window.location.href = `/?project=${project.id}` },
-    onSessionSelect: (project: any, sessionId: string) => {
-      window.location.href = `/?project=${project.id}&session=${sessionId}`
+    onSessionSelect: async (project: any, sessionId: string) => {
+      setViewingSession(sessionId)
+      setIsLoadingHistory(true)
+      try {
+        const { getSessionMessages } = await import('../lib/projects')
+        const msgs = await getSessionMessages(project.id, sessionId)
+        const converted: Message[] = msgs.map((m: any) => ({
+          id:      m.id,
+          content: m.content as MessageContent,
+        }))
+        setSessionHistory(converted)
+      } catch {
+        setSessionHistory([])
+      } finally {
+        setIsLoadingHistory(false)
+      }
     },
     onNewProject:  handleRethink,
     onSignOut:     handleSignOut,
@@ -977,7 +1009,57 @@ export default function Home() {
 
         <main className="flex-1 overflow-y-auto">
           <div className="px-5 py-5">
-            {messages.length === 0 ? (
+            {/* Session history view */}
+            {viewingSession ? (
+              <div className="max-w-2xl mx-auto">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <div className="text-xs font-mono text-[#484f58] uppercase tracking-widest mb-1">
+                      Session History — Read Only
+                    </div>
+                    <p className="text-xs text-[#30363d]">
+                      {sessionHistory.length} messages
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => { setViewingSession(null); setSessionHistory([]) }}
+                      className="text-xs px-3 py-1.5 bg-[#161b22] border border-[#30363d] text-[#484f58] hover:text-[#e6edf3] rounded-lg transition-colors font-mono"
+                    >
+                      ← Back
+                    </button>
+                    <button
+                      onClick={() => {
+                        setViewingSession(null)
+                        setSessionHistory([])
+                        handleStartNewSession()
+                      }}
+                      className="text-xs px-3 py-1.5 bg-[#f0b429] text-[#0d1117] font-semibold rounded-lg hover:bg-[#e0a419] transition-colors"
+                    >
+                      Resume Project →
+                    </button>
+                  </div>
+                </div>
+
+                {isLoadingHistory ? (
+                  <div className="space-y-3">
+                    {[1,2,3].map(i => (
+                      <div key={i} className="h-16 bg-[#161b22] border border-[#21262d] rounded-xl animate-pulse" />
+                    ))}
+                  </div>
+                ) : sessionHistory.length === 0 ? (
+                  <div className="text-center py-12">
+                    <p className="text-sm text-[#484f58]">No messages in this session yet.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 opacity-80 pointer-events-none">
+                    {sessionHistory.map(msg => (
+                      <div key={msg.id}>{renderMessage(msg)}</div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
                 <div className="w-14 h-14 rounded-2xl bg-[#f0b429]/10 border border-[#f0b429]/20 flex items-center justify-center mb-5">
                   <span className="text-[#f0b429] text-2xl font-bold">3</span>
@@ -1054,6 +1136,11 @@ export default function Home() {
           </div>
         </footer>
       </div>
+
+      <PreviewPanel
+        content={previewContent}
+        onClose={() => setPreviewContent(null)}
+      />
     </div>
   )
 }

@@ -174,8 +174,14 @@ export type MessageContent =
   | { type: 'diagrams'; diagrams: Diagram[] }
   | { type: 'graph'; summary: GraphSummary; elapsed: number }
   | { type: 'complete'; projectId: string }
+  | {
+      type: 'download'
+      filename: string
+      content: string
+      mimeType: string
+      label: string
+    }
   | { type: 'error'; message: string }
-
 export interface Message {
   id: string
   content: MessageContent

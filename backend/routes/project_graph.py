@@ -38,7 +38,7 @@ async def project_graph(request: Request, body: ProjectGraphRequest):
     """
     try:
         from fastmcp import Client
-        from services.project_graph import run_project_graph
+        from services.project_graph import generate_project_graph as run_project_graph
 
         async with Client("http://localhost:8001/mcp") as mcp:
 
