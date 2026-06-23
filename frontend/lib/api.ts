@@ -46,17 +46,16 @@ export async function runCouncil(
   idea: string,
   intake: IntakeData,
 ) {
-  const { PURPOSE_OPTIONS } = await import('./constants')
-  const purposeOption = PURPOSE_OPTIONS.find(p => p.id === intake.purpose)
   return apiPost('council', {
     project_id: projectId,
     idea,
-    target_role: intake.role || 'Software Engineer',
-    purpose: intake.purpose,
-    purpose_lens: purposeOption?.council_lens || '',
+    intake: {
+      role:             intake.role || 'Software Engineer',
+      purpose:          intake.purpose || 'portfolio',
+      original_message: intake.originalMessage || '',
+    },
   })
 }
-
 // ── Deep Analysis ─────────────────────────────
 
 export async function runDeepAnalysis(

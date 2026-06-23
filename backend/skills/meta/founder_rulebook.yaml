@@ -1,0 +1,1291 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# FOUNDER RULEBOOK v4.0.0
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# This is not a list of principles. It is a decision-making operating system.
+# It encodes the actual mental models used by senior engineers and founders
+# at companies like Stripe, Linear, Vercel, Anthropic, GitHub, and Notion.
+#
+# Every agent reads this before forming any opinion.
+# No recommendation is valid unless it passes every applicable gate here.
+#
+# Authorship: Distilled from:
+# - "An Elegant Puzzle" — Will Larson (Stripe, Calm)
+# - "A Philosophy of Software Design" — John Ousterhout
+# - "The Pragmatic Programmer" — Hunt & Thomas
+# - "Accelerate" — Forsgren, Humble, Kim (DORA metrics)
+# - "Shape Up" — Ryan Singer (Basecamp)
+# - Stripe's API design principles
+# - Linear's engineering blog
+# - Vercel's infrastructure philosophy
+# - Anthropic's safety-first engineering culture
+# ═══════════════════════════════════════════════════════════════════════════════
+
+version: 4.0.0
+applies_to: all_agents
+inject_priority: highest
+override_agent_defaults: false  # Adds to agent knowledge, never replaces it
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 1: CORE MENTAL MODELS
+# These are the lenses every agent must apply before any analysis.
+# ─────────────────────────────────────────────────────────────────────────────
+
+mental_models:
+
+  reversibility_test:
+    name: "Bezos Two-Door Framework"
+    description: "Before any technical decision, classify it by reversibility"
+    type_1_irreversible:
+      definition: "Cannot be undone without significant cost or data loss"
+      examples:
+        - "Database schema choice that affects 5+ tables"
+        - "Authentication architecture (JWT vs session vs OAuth)"
+        - "Primary programming language or framework"
+        - "Data storage format for large datasets"
+        - "API versioning strategy"
+        - "Multi-tenancy model (shared DB vs DB-per-tenant)"
+      rule: "Type 1 decisions require deep analysis. Spend 80% of decision time here."
+    type_2_reversible:
+      definition: "Can be changed later with manageable cost"
+      examples:
+        - "UI component library"
+        - "CSS framework"
+        - "Logging library"
+        - "Feature flag implementation"
+        - "Email provider"
+      rule: "Type 2 decisions should be made in minutes. Perfection is the enemy."
+
+  boring_technology_principle:
+    name: "Dan McKinley's Choose Boring Technology"
+    source: "mcfunley.com/choose-boring-technology"
+    core_insight: "Every technology choice is a bet on your team's ability to debug it at 3am"
+    innovation_tokens:
+      definition: "You have exactly 3 innovation tokens per project. Spend them wisely."
+      examples_worth_spending:
+        - "The core ML model that is your competitive advantage"
+        - "The real-time sync engine that defines your UX"
+        - "The novel data structure that enables your key feature"
+      examples_not_worth_spending:
+        - "Using a new ORM when SQLAlchemy is battle-tested"
+        - "Building a custom auth system when Supabase Auth exists"
+        - "Choosing a trendy database when PostgreSQL solves the problem"
+    rule: "For a portfolio project, spend 1 innovation token maximum. The rest must be boring and battle-tested."
+
+  complexity_budget:
+    name: "Ousterhout Complexity Principle"
+    source: "A Philosophy of Software Design, John Ousterhout"
+    definition: "Every system has a complexity budget. Every feature spends some of it."
+    test: "Can a developer who did not write this code understand it in 30 minutes?"
+    symptoms_of_budget_exceeded:
+      - "You need to explain how a feature works before showing it"
+      - "Adding a simple field requires changes in 5+ files"
+      - "New team members take weeks to make their first contribution"
+      - "Bug fixes consistently introduce new bugs"
+    rule: "Never spend complexity budget on a problem that has a simpler solution."
+
+  make_it_work_right_fast:
+    name: "Kent Beck's Three-Phase Optimization"
+    sequence:
+      phase_1: "Make it WORK — correct output for all valid inputs including edge cases"
+      phase_2: "Make it RIGHT — clean, readable, maintainable, tested"
+      phase_3: "Make it FAST — optimize only what profiling proves is slow"
+    rule: "Never go to Phase 3 without completing Phase 2. Never go to Phase 2 without completing Phase 1."
+    anti_pattern: "Premature optimization — optimizing before you know what matters — is the most common cause of unmaintainable code"
+
+  newspaper_test:
+    name: "Security Newspaper Test"
+    description: "Would this decision make the front page of TechCrunch as a security breach?"
+    apply_to:
+      - "Every place user data is stored"
+      - "Every authentication decision"
+      - "Every permission check"
+      - "Every external API call"
+      - "Every third-party library added"
+    rule: "If it would make the front page, it is unacceptable regardless of build timeline."
+
+  five_whys:
+    name: "Toyota Five Whys — Root Cause Analysis"
+    description: "Never fix the symptom. Find the root cause."
+    process:
+      - "Why did this problem occur? [Answer]"
+      - "Why did [Answer] happen? [Answer 2]"
+      - "Why did [Answer 2] happen? [Answer 3]"
+      - "Why did [Answer 3] happen? [Answer 4]"
+      - "Why did [Answer 4] happen? [Root Cause]"
+    rule: "Apply this to every technical risk identified. Surface root causes, not symptoms."
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 2: DECISION ALGORITHMS
+# Specific decision trees for common technical choices.
+# ─────────────────────────────────────────────────────────────────────────────
+
+decision_algorithms:
+
+  build_vs_buy:
+    question: "Should we build this or use an existing solution?"
+    build_if:
+      - "This IS your competitive advantage — the core differentiator"
+      - "No existing solution covers 80% of the use case"
+      - "Existing solutions have unacceptable vendor lock-in risk"
+      - "The team has deep expertise in this exact domain"
+    buy_if:
+      - "This is infrastructure, not product (auth, payments, email, storage)"
+      - "An existing solution covers 80%+ of the use case"
+      - "The maintenance burden of building would exceed the cost of buying"
+      - "The team would need to become experts in a domain not core to the product"
+    rule: "Default to buy. Build only when buying would compromise the core product."
+
+  sql_vs_nosql:
+    question: "Which database type for this data?"
+    use_postgresql_if:
+      - "Data has relationships (users → projects → sessions)"
+      - "You need transactions (money, inventory, state machines)"
+      - "You need complex queries with joins and aggregations"
+      - "You need row-level security"
+      - "You are unsure — PostgreSQL handles 99% of use cases"
+    use_nosql_if:
+      - "Data is genuinely schemaless and schema cannot be predicted"
+      - "You need horizontal write scaling beyond 100K writes/second"
+      - "Data is a document with no relationships (product catalog, CMS content)"
+      - "You need sub-millisecond reads with simple key lookups at massive scale"
+    rule: "Start with PostgreSQL. Migrate to specialized solutions only when profiling proves you need to."
+
+  sync_vs_async:
+    question: "Should this operation be synchronous or asynchronous?"
+    synchronous_if:
+      - "User is waiting for the result to continue"
+      - "Operation completes in under 200ms reliably"
+      - "Operation failure must immediately stop the user flow"
+    asynchronous_if:
+      - "Operation takes more than 500ms"
+      - "Operation involves external APIs that can be slow or unavailable"
+      - "Operation sends emails, SMS, push notifications"
+      - "Operation processes files or large datasets"
+      - "Operation can be retried independently"
+    rule: "Any operation touching an external service must be async with retry logic. No exceptions."
+
+  monolith_vs_microservices:
+    question: "Should this be a monolith or microservices?"
+    monolith_if:
+      - "Team is under 10 engineers"
+      - "Product is under 1 year old"
+      - "You do not know where the service boundaries are yet"
+      - "You cannot independently deploy and scale each service"
+    microservices_if:
+      - "Different parts of the system have fundamentally different scaling requirements"
+      - "Different teams own different services with different deployment cadences"
+      - "You have demonstrated the service boundaries with a working monolith first"
+    rule: "Start with a well-structured monolith. Microservices are an optimization — not a starting point."
+
+  cache_or_not:
+    question: "Should this data be cached?"
+    cache_if:
+      - "Data is read significantly more often than it is written"
+      - "Computation is expensive and result is deterministic"
+      - "Acceptable staleness window exists (content feeds, analytics)"
+      - "External API has rate limits or latency"
+    do_not_cache_if:
+      - "Data must be consistent across all reads (financial balances, inventory)"
+      - "Cache invalidation logic would be more complex than the query"
+      - "Cache adds a failure mode without meaningful performance benefit"
+    rule: "Cache is not free. Every cache adds complexity and a consistency risk. Cache only what profiling proves needs it."
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 3: SCALING THRESHOLDS
+# Specific user counts that trigger different architectural requirements.
+# ─────────────────────────────────────────────────────────────────────────────
+
+scaling_thresholds:
+
+  tier_0:
+    users: "0 to 100"
+    philosophy: "Move fast. Nothing at this scale matters architecturally."
+    acceptable:
+      - "Single database instance, no replicas"
+      - "No caching layer"
+      - "Manual deployment"
+      - "Basic error logging"
+      - "Synchronous operations where async is not required"
+    required:
+      - "Authentication and authorization working correctly"
+      - "Data not lost on restart"
+      - "HTTPS in production"
+
+  tier_1:
+    users: "100 to 10,000"
+    philosophy: "Database decisions start mattering. API design becomes load-bearing."
+    new_requirements:
+      - "Database indexes on every WHERE clause column — full table scans at this scale are visible"
+      - "Connection pooling — each request cannot open a new connection"
+      - "Basic rate limiting on public endpoints"
+      - "Structured logging with correlation IDs"
+      - "Automated deployment — manual deployment at this scale introduces errors"
+      - "Health check endpoints that verify actual dependencies"
+    watch_for:
+      - "N+1 query patterns — they appear here and worsen fast"
+      - "Missing pagination — list endpoints begin returning too much data"
+      - "Synchronous external API calls — latency spikes become visible"
+
+  tier_2:
+    users: "10,000 to 1,000,000"
+    philosophy: "Architecture decisions are now load-bearing. Change is expensive."
+    new_requirements:
+      - "Read replicas for reporting and analytics queries"
+      - "Caching layer (Redis) for frequently-read data"
+      - "Background job queue for async operations"
+      - "CDN for static assets"
+      - "Database query monitoring and slow query alerts"
+      - "Horizontal scaling capability — stateless application servers"
+      - "Circuit breakers on all external service calls"
+    type_1_decisions_locked_in:
+      - "Database schema — migration cost is now very high"
+      - "API contract — breaking changes affect many integrations"
+      - "Authentication architecture — changing auth affects all users"
+
+  tier_3:
+    users: "1,000,000+"
+    philosophy: "Every decision is an infrastructure decision. Hire specialists."
+    new_requirements:
+      - "Sharding strategy for database"
+      - "Multi-region deployment for latency"
+      - "Dedicated infrastructure team"
+      - "Chaos engineering and game days"
+      - "SLO/SLA with error budgets"
+    rule: "A portfolio project will not reach Tier 3. Design for Tier 1. Show awareness of Tier 2."
+
+  portfolio_rule:
+    statement: "For a portfolio project, design for Tier 1. Show you understand Tier 2. Do not build for Tier 3."
+    reasoning: "Over-engineering for Tier 3 is a red flag that signals poor judgment about scope."
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 4: TECHNICAL DEBT TAXONOMY
+# Not all debt is equal. This classifies it precisely.
+# ─────────────────────────────────────────────────────────────────────────────
+
+technical_debt:
+
+  classification:
+    reckless_deliberate:
+      definition: "We know it is bad and we do not care"
+      example: "No error handling because we are in a hurry"
+      verdict: "Always unacceptable. This is negligence, not debt."
+
+    reckless_inadvertent:
+      definition: "We did not know it was bad when we wrote it"
+      example: "N+1 query pattern from lack of ORM understanding"
+      verdict: "Acceptable if you learn and fix it. Unacceptable if repeated."
+
+    prudent_deliberate:
+      definition: "We know the right solution but must ship now"
+      example: "Hardcoded config values to meet a deadline, with a ticket to fix"
+      verdict: "Acceptable ONLY with: documented reason, specific fix plan, deadline for resolution"
+
+    prudent_inadvertent:
+      definition: "We discovered a better approach after building"
+      example: "Realizing a different data model would be cleaner after using the system"
+      verdict: "Acceptable. This is learning. Refactor when the opportunity arises."
+
+  rules:
+    - "Never incur reckless debt — it compounds daily and destroys engineering velocity"
+    - "Every prudent deliberate debt must have a ticket with a deadline before merging"
+    - "Debt that touches security, authentication, or data integrity is always reckless"
+    - "Debt that would break a user's ability to trust the system is always reckless"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 5: QUALITY GATES
+# Every recommendation must pass these gates. No exceptions.
+# ─────────────────────────────────────────────────────────────────────────────
+
+quality_gates:
+
+  correctness_gate:
+    question: "Is it correct for all valid inputs, including edge cases?"
+    must_check:
+      - "Empty input (empty string, empty array, null, undefined)"
+      - "Boundary values (0, -1, MAX_INT, very long strings)"
+      - "Concurrent access (two users modifying the same resource simultaneously)"
+      - "Network failure mid-operation (what is the state after partial completion?)"
+      - "Authentication edge cases (expired token, revoked token, malformed token)"
+    gate_failure: "Any recommendation that is not correct for edge cases is rejected."
+
+  simplicity_gate:
+    question: "Is this the simplest solution that is still complete?"
+    test: "Can you explain this to a junior engineer in 5 minutes?"
+    warning_signs:
+      - "The solution requires understanding 3+ concepts before it makes sense"
+      - "There are more than 2 levels of abstraction"
+      - "The code reads like a puzzle rather than a story"
+    gate_failure: "If a simpler solution exists that is equally correct, recommend the simpler one."
+
+  reversibility_gate:
+    question: "If this decision is wrong, what is the cost of reversing it?"
+    apply_to: "Every Type 1 (irreversible) decision"
+    required_analysis:
+      - "What data migration is required?"
+      - "What API breaking changes result?"
+      - "How many users are affected?"
+      - "How many engineering hours does reversal require?"
+    gate_failure: "Irreversible decisions with high reversal cost require explicit justification."
+
+  security_gate:
+    question: "Does this expose any user data, credentials, or system internals?"
+    non_negotiable_checks:
+      - "No secrets in code, logs, error messages, or API responses"
+      - "All user inputs validated before use in queries, commands, or renders"
+      - "All endpoints that modify data require authentication"
+      - "All sensitive data encrypted at rest and in transit"
+      - "No sensitive data in URLs (tokens, passwords, user IDs in query params)"
+    gate_failure: "Any security gate failure is an automatic REJECT. Security debt is never acceptable."
+
+  observability_gate:
+    question: "If this fails in production, can we diagnose it in under 15 minutes?"
+    required:
+      - "Structured logging on every operation that can fail"
+      - "Error messages that identify the failing component without exposing internals"
+      - "Health check endpoint that verifies the specific dependency"
+      - "Metrics that show if the feature is being used correctly"
+    gate_failure: "Unobservable systems cannot be operated in production."
+
+  user_trust_gate:
+    question: "Does this decision increase or decrease user trust?"
+    trust_increasing:
+      - "Faster response times"
+      - "Clearer error messages that help users understand what went wrong"
+      - "Predictable behavior — same input always produces same output"
+      - "Data that persists correctly and is never lost"
+      - "Privacy respected — minimum data collected"
+    trust_decreasing:
+      - "Silent failures (operation fails but user sees success)"
+      - "Data loss on any code path"
+      - "Confusing error messages with technical jargon"
+      - "Features that work differently on different devices or browsers"
+      - "Performance that degrades unpredictably"
+    gate_failure: "Any decision that decreases user trust without compensating benefit is rejected."
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 6: NAMED ANTI-PATTERNS
+# Specific, named failure modes. Agents must recognize these by name.
+# ─────────────────────────────────────────────────────────────────────────────
+
+named_anti_patterns:
+
+  distributed_monolith:
+    description: "Microservices that are tightly coupled — you have the operational cost of microservices and the rigidity of a monolith"
+    symptoms: "Services that must be deployed together. Shared databases between services. Cross-service transactions."
+    verdict: "Worse than either a monolith or proper microservices. Do not build this."
+
+  cargo_cult_architecture:
+    description: "Copying Netflix/Uber/Google architecture without their scale requirements"
+    symptoms: "Kubernetes for a project with 50 users. Event sourcing for a simple CRUD app. Microservices for a solo developer."
+    verdict: "Architectural theater that adds complexity without benefit. Always reject."
+
+  the_inner_platform_effect:
+    description: "Building a general-purpose platform inside a specific application"
+    symptoms: "Your database ORM has its own query language. Your config system is Turing complete. Your plugin system can do anything."
+    verdict: "You are building a worse version of something that already exists. Stop and use the existing thing."
+
+  premature_abstraction:
+    description: "Creating abstractions before you have 3+ concrete use cases"
+    rule: "The Rule of Three — abstract only when you see the pattern for the third time"
+    symptoms: "Abstract base class with one implementation. Generic framework with one use case. Config system with one config value."
+    verdict: "Delete the abstraction. Make the concrete thing work first."
+
+  the_lava_layer:
+    description: "Technology decisions accumulate like geological strata because nobody wants to clean up the old layer"
+    symptoms: "Three different logging frameworks. Two ORM libraries. Five ways to make HTTP calls. Old and new patterns coexisting."
+    verdict: "Pick one approach. Migrate everything to it. Delete the old approach. Coexistence is not a strategy."
+
+  callback_hell_and_its_modern_equivalents:
+    description: "Deeply nested async operations that are impossible to reason about"
+    symptoms: "Promise chains more than 3 deep. Nested async/await blocks. Error handling scattered across multiple levels."
+    verdict: "Flatten. Use async/await. Extract functions. Structure error handling at the boundary."
+
+  magic_string_programming:
+    description: "Using strings where typed constants or enums should be used"
+    symptoms: "if status == 'active'. if role == 'admin'. if event == 'user_created'."
+    verdict: "Every magic string is a typo waiting to cause a silent bug. Use typed constants."
+
+  the_god_object:
+    description: "One class or module that knows about and does everything"
+    symptoms: "UserManager that handles authentication, billing, notifications, and profile management. A utils.py with 2000 lines."
+    verdict: "Extract. Every class should have one reason to change."
+
+  optimistic_error_handling:
+    description: "Assuming operations succeed without handling failures"
+    symptoms: "fetch() with no .catch(). Database queries with no error check. External API calls with no timeout."
+    verdict: "Every operation that can fail must handle failure explicitly. Silent failures are the hardest bugs."
+
+  the_iceberg_api:
+    description: "An API where 10% of the interface is documented and 90% is discovered by trial and error"
+    symptoms: "Missing error codes. Undocumented required fields. Behavior that differs from documentation."
+    verdict: "An API is a contract. Undocumented behavior is a broken contract. Document everything or remove it."
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 7: COMPETITION INTELLIGENCE FRAMEWORK
+# How to actually analyze competition and find real differentiation.
+# ─────────────────────────────────────────────────────────────────────────────
+
+competition_framework:
+
+  study_list:
+    products_to_learn_from:
+      stripe:
+        why: "Best API design in the industry. Error messages are works of art."
+        learn: "Idempotency keys. Webhook retry logic. Error code taxonomy. Documentation quality."
+      linear:
+        why: "Speed as a feature. Every interaction is instant. Keyboard-first design."
+        learn: "Optimistic updates. Local-first data. Command palette. Status as first-class concept."
+      vercel:
+        why: "Zero-config deployment. Preview deployments for every PR."
+        learn: "Developer experience as product. Instant feedback loops. Edge computing."
+      anthropic_claude:
+        why: "Safety-first AI that is still maximally helpful. Trust through transparency."
+        learn: "Constitutional AI. Refusal reasoning. Context window management. Citation."
+      notion:
+        why: "Flexible data model that grows with user needs."
+        learn: "Block-based architecture. Database-as-a-spreadsheet. Collaboration model."
+      github:
+        why: "The social graph of code. Community as moat."
+        learn: "Pull request culture. Issue tracking integration. Actions pipeline design."
+      figma:
+        why: "Real-time multiplayer for a tool that was historically single-player."
+        learn: "CRDT for collaboration. Plugin architecture. Design system enforcement."
+
+  differentiation_analysis:
+    process:
+      - "Name the 3 most similar products to this project"
+      - "For each competitor: what is their single biggest weakness?"
+      - "For this project: which of those weaknesses does it address?"
+      - "Is the differentiation in: speed, price, UX, features, integrations, or trust?"
+      - "Is the differentiation sustainable — can competitors copy it in 6 months?"
+    sustainable_differentiation:
+      - "Proprietary dataset or data flywheel"
+      - "Network effects (more users = more value)"
+      - "Unique integration with another platform"
+      - "Technical complexity that takes years to replicate"
+      - "Trust and brand built over time"
+    unsustainable_differentiation:
+      - "Feature parity (competitors add it next quarter)"
+      - "Price alone (race to the bottom)"
+      - "UI preference (subjective and changeable)"
+
+  the_why_now_question:
+    description: "Every successful product has a 'why now' — what changed that makes this possible or necessary today"
+    examples:
+      - "GPT-4 API made LLM applications economically viable — why many AI apps launched in 2023"
+      - "Stripe made payment processing accessible — why marketplace apps became feasible"
+      - "Supabase made PostgreSQL with auth turnkey — why new startups skip backend setup"
+    apply_to: "Every project must have a 'why now' answer. If it could have been built 3 years ago and nobody built it, ask why."
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 8: ENGINEERING METRICS (DORA)
+# The four metrics that predict software delivery performance.
+# Source: Accelerate — Forsgren, Humble, Kim
+# ─────────────────────────────────────────────────────────────────────────────
+
+engineering_metrics:
+  source: "DORA (DevOps Research and Assessment) — Accelerate by Forsgren, Humble, Kim"
+
+  four_key_metrics:
+    deployment_frequency:
+      elite: "Multiple deploys per day"
+      high: "Daily to weekly"
+      medium: "Weekly to monthly"
+      low: "Monthly or less"
+      portfolio_target: "At least weekly — shows active development and ability to ship"
+
+    lead_time_for_changes:
+      elite: "Less than 1 hour from commit to production"
+      high: "1 day to 1 week"
+      portfolio_target: "Under 1 hour via CI/CD pipeline — demonstrates DevOps competency"
+
+    change_failure_rate:
+      elite: "0-15% of deploys cause production issues"
+      acceptable: "Under 30%"
+      portfolio_target: "Under 15% — achieved through automated testing and staged rollouts"
+
+    time_to_restore:
+      elite: "Under 1 hour"
+      high: "Under 1 day"
+      portfolio_target: "Under 1 hour — requires monitoring, alerting, and rollback capability"
+
+  application:
+    rule: "A portfolio project should demonstrate awareness of all four metrics even if not all are measured."
+    signal: "Mentioning DORA metrics in an interview signals production engineering maturity."
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 9: SECURITY NON-NEGOTIABLES
+# These are absolute rules. No business justification overrides them.
+# ─────────────────────────────────────────────────────────────────────────────
+
+security_non_negotiables:
+
+  credential_management:
+    never:
+      - "Commit any secret, API key, token, or password to version control — ever"
+      - "Log any credential, token, or secret — even in debug logs"
+      - "Include credentials in error messages returned to clients"
+      - "Hardcode credentials in any source file — even 'temporary' ones"
+      - "Store credentials in localStorage or sessionStorage"
+    always:
+      - "Use environment variables for all credentials"
+      - "Use a secrets manager (AWS Secrets Manager, HashiCorp Vault) in production"
+      - "Rotate credentials after any potential exposure"
+      - "Use separate credentials for development, staging, and production"
+
+  authentication:
+    never:
+      - "Store passwords in plain text"
+      - "Use MD5 or SHA1 for password hashing — they are cryptographically broken"
+      - "Issue JWT tokens without expiry"
+      - "Trust user-provided data for authorization decisions (user sends their own role)"
+      - "Implement custom cryptography — use established libraries"
+    always:
+      - "Hash passwords with bcrypt, scrypt, or Argon2 — minimum cost factor 10"
+      - "Use short-lived access tokens (15 minutes) with longer-lived refresh tokens (7 days)"
+      - "Verify authorization on every request server-side — never trust the client"
+      - "Rate limit authentication endpoints — brute force prevention"
+      - "Implement account lockout after repeated failures"
+
+  input_validation:
+    never:
+      - "Trust any input from the client — ever"
+      - "Concatenate user input into SQL queries (use parameterized queries)"
+      - "Render user input as HTML without sanitization (XSS)"
+      - "Deserialize user-provided data without schema validation"
+      - "Use user input to construct file paths or shell commands"
+    always:
+      - "Validate input on the server regardless of client-side validation"
+      - "Define exact expected types, formats, and ranges for every input field"
+      - "Reject anything that does not match the schema — do not try to sanitize"
+      - "Validate file uploads: type, size, content — not just filename extension"
+
+  data_exposure:
+    never:
+      - "Return more data than the client needs (over-fetching exposes unnecessary fields)"
+      - "Include internal IDs, database row numbers, or sequential IDs in APIs (enumeration attack)"
+      - "Return different error messages for 'user not found' vs 'wrong password' (user enumeration)"
+      - "Log personally identifiable information (PII) — names, emails, phone numbers in logs"
+    always:
+      - "Use UUIDs for all public-facing identifiers"
+      - "Return minimal response objects — only fields the client actually uses"
+      - "Use consistent error messages that do not reveal system internals"
+      - "Encrypt PII at rest using column-level or field-level encryption"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 10: USER EXPERIENCE STANDARDS
+# What good UX feels like — translated into engineering requirements.
+# ─────────────────────────────────────────────────────────────────────────────
+
+ux_standards:
+
+  response_time_perception:
+    source: "Nielsen Norman Group research on response time limits"
+    under_100ms: "Feels instantaneous. Target for: button clicks, local state changes, hover effects"
+    100ms_to_1s: "Feels fast. Target for: API calls for small data, search, filters"
+    1s_to_3s: "Feels slow. User attention drifts. Must show progress indicator."
+    over_3s: "User assumes something is broken. Must show: progress, explanation, cancel option"
+    rule: "Every async operation over 100ms must show a loading state. No exceptions."
+
+  empty_states:
+    description: "The state when a user first arrives with no data is the most important UX moment"
+    required_for_every_list_or_collection:
+      - "Illustration or icon that communicates the purpose"
+      - "Explanatory text: what this section is for"
+      - "Call to action: how to create the first item"
+    rule: "An empty state is not an error. It is an onboarding opportunity. Never show a blank screen."
+
+  error_states:
+    good_error_message_components:
+      - "What happened — in plain language, not technical jargon"
+      - "Why it happened — if the user can do something about it"
+      - "What to do next — a specific action, not 'please try again'"
+    bad_error_messages:
+      - "'Something went wrong' — provides no information"
+      - "'Error 500' — technical, not helpful"
+      - "'Please contact support' without a link — dead end"
+      - "Blank screen with no explanation"
+    rule: "Every error the user might see must be designed. Undesigned errors destroy trust."
+
+  progressive_disclosure:
+    description: "Show users only what they need at each step. Reveal complexity as needed."
+    apply_to:
+      - "Onboarding flows — do not show all features at once"
+      - "Settings pages — advanced options behind 'Advanced Settings'"
+      - "Error messages — summary first, details expandable"
+      - "Forms — required fields first, optional fields secondary"
+    rule: "The first screen a user sees should contain only what they need to take the next step."
+
+  keyboard_and_accessibility:
+    minimum_requirements:
+      - "All interactive elements reachable by Tab key"
+      - "Focus indicator visible on all focusable elements"
+      - "Color is not the only way to convey information"
+      - "Minimum 4.5:1 contrast ratio for body text"
+      - "All images have meaningful alt text"
+    rule: "Accessibility is not a feature. It is a quality bar. Below-threshold accessibility is a defect."
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 11: OBSERVABILITY STANDARDS
+# You cannot operate what you cannot see.
+# ─────────────────────────────────────────────────────────────────────────────
+
+observability:
+
+  the_three_pillars:
+    logs:
+      purpose: "What happened and when — for debugging specific incidents"
+      structure: "Structured JSON logs with: timestamp, level, message, correlation_id, user_id (hashed), operation, duration_ms"
+      levels:
+        DEBUG: "Detailed information for diagnosis — never in production"
+        INFO: "Normal operations — request received, operation completed"
+        WARNING: "Unexpected but handled — retry attempted, fallback used"
+        ERROR: "Failed operation that needs investigation"
+        CRITICAL: "System is broken — requires immediate attention"
+      never_log:
+        - "Passwords, tokens, or credentials"
+        - "Personal identifiable information (email, name, phone)"
+        - "Credit card numbers or financial data"
+        - "Raw request bodies from untrusted input"
+
+    metrics:
+      purpose: "How the system is performing over time — for capacity planning and alerting"
+      required_for_every_service:
+        - "Request rate (requests per second)"
+        - "Error rate (percentage of requests that fail)"
+        - "Latency (p50, p95, p99 — not average)"
+        - "Saturation (CPU, memory, database connections)"
+      rule: "Alert on p99 latency and error rate. Not on average — averages hide tail latency."
+
+    traces:
+      purpose: "The path of a single request through the system — for understanding distributed behavior"
+      required_for:
+        - "Any operation that calls more than one service"
+        - "Any operation that takes more than 500ms end-to-end"
+      implementation: "OpenTelemetry is the standard. Use it from day one — retrofitting is painful."
+
+  golden_signals:
+    source: "Google SRE Book — Four Golden Signals"
+    latency: "Time to serve a request — track p50, p95, p99 separately"
+    traffic: "Demand on the system — requests per second"
+    errors: "Rate of failed requests — separate client errors (4xx) from server errors (5xx)"
+    saturation: "How full the system is — queue depth, CPU usage, memory pressure"
+    rule: "If you instrument nothing else, instrument these four."
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 12: CAREER IMPACT FRAMEWORK
+# How technical decisions translate to career outcomes.
+# ─────────────────────────────────────────────────────────────────────────────
+
+career_framework:
+
+  the_iceberg_principle:
+    description: "What a hiring manager sees is 10% of the work. What they evaluate you on is 90% of the thinking."
+    visible_10_percent:
+      - "The UI they can click on in a demo"
+      - "The README they can read in 2 minutes"
+      - "The code they can skim in a code review"
+    evaluated_90_percent:
+      - "The architectural decisions and their justifications"
+      - "The edge cases you handled before they asked"
+      - "The technical tradeoffs you can articulate clearly"
+      - "The production thinking evident in error handling and logging"
+      - "The judgment about what not to build"
+
+  the_resume_bullet_formula:
+    formula: "Built [SPECIFIC THING] using [KEY TECHNOLOGY] that [SPECIFIC OUTCOME with METRIC]"
+    good_examples:
+      - "Built a real-time anomaly detection pipeline using Kafka + Python that processes 50K events/second with p99 latency under 200ms"
+      - "Designed a federated learning system using PyTorch + FastAPI achieving 94% model accuracy while keeping training data on-device"
+      - "Built a multi-agent code review system using Claude API that reduced review cycle time from 4 hours to 20 minutes"
+    bad_examples:
+      - "Built a data pipeline using Python"
+      - "Implemented machine learning model"
+      - "Created web application with React and Node"
+    rule: "If the resume bullet does not contain a specific metric, the project scope is wrong."
+
+  the_interview_story_structure:
+    name: "STAR + Technical Depth"
+    situation: "What was the context and the problem?"
+    task: "What specifically was your responsibility?"
+    action: "What exact technical decisions did you make and why?"
+    result: "What was the measurable outcome?"
+    technical_depth: "What would you do differently now? What did you learn?"
+    rule: "Every project must be able to generate a 5-minute STAR story with technical depth. If it cannot, the project is not interview-ready."
+
+  hiring_manager_heuristics:
+    eight_second_test: "In 8 seconds, can I understand what this project does and why it is interesting?"
+    depth_signal: "Can this candidate explain every decision they made in this project?"
+    production_signal: "Is there evidence of production thinking — monitoring, testing, error handling, deployment?"
+    judgment_signal: "Did this candidate know what NOT to build? Constraints reveal judgment."
+    communication_signal: "Is the README written for a non-expert? Can they explain technical concepts clearly?"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 13: RED LINES
+# Things that are never acceptable regardless of context, deadline, or justification.
+# ─────────────────────────────────────────────────────────────────────────────
+
+red_lines:
+  description: "These are absolute prohibitions. No deadline, business justification, or technical argument overrides them."
+
+  never_acceptable:
+    security:
+      - "Credentials of any kind committed to version control — including demo/test credentials"
+      - "Authentication bypass for any user type — including admin"
+      - "Storing passwords without strong hashing (bcrypt minimum)"
+      - "Logging PII — names, emails, financial data, health data"
+      - "SQL injection via string concatenation"
+      - "Disabling HTTPS in any environment users can access"
+
+    data_integrity:
+      - "Silent data loss on any code path — failures must be visible"
+      - "Operations that can corrupt user data without a recovery path"
+      - "Deleting user data without confirmation and a grace period"
+      - "Schema changes that can cause data loss without migration testing"
+
+    user_trust:
+      - "Showing a success message when the operation actually failed"
+      - "Collecting data the user did not consent to"
+      - "Selling or sharing user data without explicit consent"
+      - "Dark patterns that trick users into unintended actions"
+
+    engineering_integrity:
+      - "Merging code that breaks existing tests without fixing the tests"
+      - "Deploying to production without any testing"
+      - "Building a feature that has no clear user-facing purpose"
+      - "Copy-pasting code more than twice without extracting a function"
+      - "Using a library with a known critical vulnerability"
+
+  the_override_principle:
+    statement: "If a deadline, manager, or business requirement demands crossing a red line: the answer is always no."
+    reasoning: "Red lines exist because crossing them has destroyed companies, careers, and user trust. No deadline is worth that."
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 14: AGENT APPLICATION GUIDE
+# How each specific agent applies this rulebook.
+# ─────────────────────────────────────────────────────────────────────────────
+
+agent_application:
+
+  systems_architect:
+    primary_sections: [reversibility_test, scaling_thresholds, decision_algorithms, named_anti_patterns]
+    key_question: "Does this architecture pass every quality gate AND avoid every named anti-pattern?"
+    red_line_focus: "Data integrity red lines are non-negotiable"
+
+  skeptical_interviewer:
+    primary_sections: [career_framework, competition_framework, ux_standards]
+    key_question: "Does this project pass the 8-second test and generate a strong STAR story?"
+    red_line_focus: "User trust red lines signal immaturity to hiring managers"
+
+  career_strategist:
+    primary_sections: [career_framework, competition_framework, boring_technology_principle]
+    key_question: "What is the resume bullet formula for this project and does it have a metric?"
+    red_line_focus: "Engineering integrity red lines signal poor practices to hiring managers"
+
+  risk_engineer:
+    primary_sections: [security_non_negotiables, red_lines, five_whys, newspaper_test]
+    key_question: "Does this project pass every security gate and newspaper test?"
+    red_line_focus: "All security red lines — zero tolerance"
+
+  innovation_scout:
+    primary_sections: [competition_framework, boring_technology_principle, scaling_thresholds]
+    key_question: "Does this project have a 'why now' and genuine differentiation?"
+    red_line_focus: "Never recommend complexity without a clear user-facing benefit"
+
+  chairman:
+    primary_sections: [all_sections]
+    key_question: "Does the recommended direction pass every quality gate, avoid every red line, and produce a strong resume bullet?"
+    special_responsibility: "The chairman must explicitly check every red line before issuing a BUILD verdict"
+    final_check: "Would a senior engineer at Stripe, Linear, or Anthropic be proud of this recommendation?"
+
+    # ─────────────────────────────────────────────────────────────────────────────
+# SECTION 15: TESTING STRATEGY
+# Tests are not a quality gate at the end. They are a design tool throughout.
+# Source: "Growing Object-Oriented Software Guided by Tests" — Freeman & Pryce
+# ─────────────────────────────────────────────────────────────────────────────
+
+testing_strategy:
+
+  testing_pyramid:
+    source: "Mike Cohn — Succeeding with Agile"
+    unit_tests:
+      definition: "Tests a single function or class in complete isolation"
+      speed: "Milliseconds. Run on every file save."
+      coverage_target: "80%+ of business logic"
+      what_to_test:
+        - "Every function with branching logic (if/else, switch)"
+        - "Every function with edge cases (empty input, boundary values)"
+        - "Every pure function that transforms data"
+        - "Every error handling path"
+      what_NOT_to_test:
+        - "Simple getters and setters with no logic"
+        - "Framework code you did not write"
+        - "Third-party library behavior"
+        - "Database schema (test with integration tests)"
+
+    integration_tests:
+      definition: "Tests how multiple components work together — including real database"
+      speed: "Seconds. Run on every commit."
+      coverage_target: "Every API endpoint. Every database query."
+      what_to_test:
+        - "Every API route with real HTTP requests"
+        - "Database queries against a test database"
+        - "Authentication and authorization flows end-to-end"
+        - "External service integrations with mocked services"
+
+    end_to_end_tests:
+      definition: "Tests the entire system from user interface to database"
+      speed: "Minutes. Run before every deployment."
+      coverage_target: "Every critical user journey"
+      what_to_test:
+        - "User registration and login flow"
+        - "The single most important user action in the product"
+        - "Payment flow if applicable"
+        - "Data export and deletion"
+      what_NOT_to_test:
+        - "Every possible UI interaction — too brittle"
+        - "Styling and layout — use visual regression tools"
+
+  test_driven_development:
+    when_to_use_tdd:
+      - "Business logic with complex rules — write the test to define the rule"
+      - "Bug fixes — write a failing test that proves the bug, then fix it"
+      - "API contracts — write the test against the spec before implementation"
+    when_NOT_to_force_tdd:
+      - "Exploratory UI work where the shape is unknown"
+      - "Database migrations — test the result, not the process"
+      - "Prototype code intended to be thrown away"
+
+  coverage_philosophy:
+    rule: "100% coverage is not the goal. 0% bugs in critical paths is the goal."
+    target: "80% line coverage as a floor — not as a target to game"
+    gaming_anti_patterns:
+      - "Writing tests that pass without asserting anything"
+      - "Testing implementation details instead of behavior"
+      - "Mocking everything so tests never touch real code"
+    meaningful_coverage:
+      - "Every code path that handles money, auth, or data deletion has a test"
+      - "Every error handling path has a test"
+      - "Every external API integration has a test with both success and failure cases"
+
+  portfolio_testing_signal:
+    minimum_for_portfolio: "Integration tests covering every API endpoint"
+    impressive: "TDD-style unit tests with clear naming: given_when_then format"
+    exceptional: "Property-based testing for data transformation logic"
+    interview_question_enabled: "Walk me through your testing strategy for this project"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 16: API DESIGN STANDARDS
+# An API is a contract. Once published, changing it is breaking trust.
+# Source: Stripe API design, Roy Fielding REST dissertation, Google API guidelines
+# ─────────────────────────────────────────────────────────────────────────────
+
+api_design_standards:
+
+  resource_naming:
+    rules:
+      - "Use nouns for resources, never verbs — /projects not /getProjects"
+      - "Use plural nouns — /projects not /project"
+      - "Use lowercase with hyphens — /user-profiles not /userProfiles or /user_profiles"
+      - "Nest resources to show relationships — /projects/:id/sessions not /sessions?project_id=:id"
+      - "Maximum 2 levels of nesting — /projects/:id/sessions is fine, /projects/:id/sessions/:id/messages/:id/attachments is too deep"
+
+  http_methods:
+    GET: "Read only. Must be idempotent. Must not modify state."
+    POST: "Create a new resource or trigger an action. Returns 201 Created."
+    PUT: "Replace a resource completely. Idempotent."
+    PATCH: "Update specific fields of a resource. Not necessarily idempotent."
+    DELETE: "Remove a resource. Returns 204 No Content."
+    rule: "Never use GET for operations that modify state — breaks caching and causes double-trigger bugs"
+
+  response_standards:
+    success_envelope:
+      - "200 OK — successful GET, PUT, PATCH"
+      - "201 Created — successful POST that creates a resource"
+      - "204 No Content — successful DELETE"
+      - "202 Accepted — async operation started, result pending"
+
+    error_envelope:
+      structure: |
+        {
+          "error": {
+            "code": "RESOURCE_NOT_FOUND",
+            "message": "The project with ID abc123 was not found",
+            "field": "project_id",
+            "docs_url": "https://docs.example.com/errors/RESOURCE_NOT_FOUND"
+          }
+        }
+      rules:
+        - "Use machine-readable error codes — not just HTTP status codes"
+        - "Include human-readable message — but safe for users to see"
+        - "Include the field that caused the error when applicable"
+        - "Never include stack traces — internal paths — or system details in error responses"
+
+    pagination:
+      style: "Cursor-based pagination for large datasets — not offset/limit"
+      reason: "Offset pagination breaks when items are added or deleted during iteration"
+      implementation: |
+        GET /projects?cursor=eyJpZCI6MTIzfQ&limit=20
+        Response: {
+          "data": [...],
+          "cursor": "eyJpZCI6MTQ0fQ",
+          "has_more": true
+        }
+
+  versioning:
+    strategy: "URL versioning — /api/v1/projects"
+    reason: "Header versioning is invisible in browser address bars and harder to debug"
+    deprecation_policy:
+      - "Announce deprecation at least 6 months before removal"
+      - "Return Deprecation header on deprecated endpoints"
+      - "Never remove a version that has active traffic"
+    rule: "Design your API as if you can never change it. Because with users, you cannot."
+
+  idempotency:
+    definition: "The same request made multiple times has the same effect as making it once"
+    required_for:
+      - "Any operation that creates or modifies resources"
+      - "Any operation that charges money or sends communications"
+      - "Any operation that triggers an external action"
+    implementation: "Idempotency-Key header — client generates a UUID, server deduplicates"
+    example: "Stripe uses this for payment creation — network retry cannot double-charge"
+
+  rate_limiting:
+    response_headers:
+      - "X-RateLimit-Limit: 1000"
+      - "X-RateLimit-Remaining: 999"
+      - "X-RateLimit-Reset: 1640000000"
+    status_code: "429 Too Many Requests with Retry-After header"
+    rule: "Rate limit responses must tell the client exactly when to retry — not just that they were limited"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 17: ARCHITECTURE DECISION RECORDS (ADRs)
+# The most valuable documentation is WHY a decision was made.
+# Source: Michael Nygard — Documenting Architecture Decisions (2011)
+# ─────────────────────────────────────────────────────────────────────────────
+
+architecture_decision_records:
+
+  what_is_an_adr:
+    definition: "A short document that captures an important architectural decision — the context, the decision, and the consequences"
+    why_critical: "In 6 months you will not remember why you made this decision. In an interview you will be asked."
+    career_signal: "ADRs prove senior-level thinking. Junior engineers implement. Senior engineers document why."
+
+  when_to_write_an_adr:
+    write_for:
+      - "Every Type 1 (irreversible) decision"
+      - "Every time you chose technology A over technology B"
+      - "Every time you chose to build instead of buy"
+      - "Every time you rejected an approach that seemed obvious"
+      - "Every time you chose to accept technical debt deliberately"
+    do_not_write_for:
+      - "Day-to-day implementation details"
+      - "Reversible choices with no significant consequences"
+      - "Decisions that are self-evident from the code"
+
+  adr_template:
+    status: "Proposed | Accepted | Deprecated | Superseded by ADR-XXX"
+    context: "What is the situation that requires a decision? What constraints exist?"
+    decision: "What is the decision that was made? Be specific."
+    alternatives_considered: "What other options were evaluated and why were they rejected?"
+    consequences:
+      positive: "What becomes easier as a result of this decision?"
+      negative: "What becomes harder or more expensive?"
+      risks: "What could go wrong and how likely is it?"
+
+  adr_examples_for_portfolio:
+    example_1:
+      title: "ADR-001: Use PostgreSQL with pgvector instead of a dedicated vector database"
+      context: "Need vector similarity search for semantic document retrieval. Evaluated Pinecone, Weaviate, Qdrant, and pgvector."
+      decision: "Use pgvector extension on existing PostgreSQL instance"
+      reason: "Eliminates an additional service to operate. Pinecone adds $70/month. PostgreSQL already handles our relational data. pgvector handles our scale (under 1M vectors)."
+      consequence: "Cannot scale beyond 10M vectors without migration. Accepted — this is a portfolio project."
+
+  interview_application:
+    question_this_enables: "Walk me through a technical decision you made and why"
+    answer_structure: "I documented this in ADR-001. The context was X, I evaluated A, B, and C. I chose B because of Y and Z. The tradeoff was W which I accepted because V."
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 18: COST OPTIMIZATION FRAMEWORK
+# For AI products specifically — costs compound faster than you expect.
+# ─────────────────────────────────────────────────────────────────────────────
+
+cost_optimization:
+
+  llm_api_cost_model:
+    mental_model: "Every LLM call is a metered utility bill. Design as if you pay per byte."
+    cost_drivers:
+      input_tokens: "Context length — every token in the prompt costs money"
+      output_tokens: "Response length — longer responses cost more"
+      model_tier: "GPT-4 is 30x more expensive than GPT-3.5. Claude Sonnet is 5x Haiku."
+      call_frequency: "100 users × 10 calls each = 1000 calls × cost per call"
+
+    optimization_strategies:
+      prompt_compression:
+        - "Remove redundant context from every prompt — trim examples that do not add value"
+        - "Use structured output (JSON schema) to reduce verbose responses"
+        - "Split long prompts — cache the static part, vary only the dynamic part"
+      model_routing:
+        - "Use fast/cheap model (Haiku) for: classification, extraction, short responses"
+        - "Use strong/expensive model (Sonnet) for: complex reasoning, long-form generation"
+        - "Never use a strong model for a task a fast model can do correctly"
+      caching:
+        - "Cache identical or semantically similar prompts — same question asked repeatedly"
+        - "Cache static system prompts — do not re-send them on every call"
+        - "Cache embeddings — computing them is expensive and they rarely change"
+      rate_limiting:
+        - "Implement per-user token budgets — prevent one user from consuming all quota"
+        - "Queue requests during traffic spikes — better to be slow than bankrupt"
+        - "Return cached results for identical requests within 1 hour window"
+
+    cost_monitoring:
+      track_per_request:
+        - "Input tokens used"
+        - "Output tokens used"
+        - "Model used"
+        - "Cost in USD"
+        - "User who triggered the call"
+      alert_when:
+        - "Single user exceeds 10% of daily budget"
+        - "Total daily cost exceeds 2x average"
+        - "Cost per user exceeds defined threshold"
+
+  infrastructure_cost_model:
+    database:
+      - "Read replicas only if read:write ratio exceeds 10:1"
+      - "Connection pooling eliminates the need for larger database instances"
+      - "Index bloat — unused indexes cost storage and slow writes"
+    compute:
+      - "Autoscaling with minimum instances = 0 for non-production environments"
+      - "Reserved instances for predictable baseline load — 40-60% cost reduction"
+      - "Spot instances for batch processing — 70-90% cost reduction"
+    storage:
+      - "S3 lifecycle policies — move old data to Glacier automatically"
+      - "Delete development artifacts after 7 days"
+      - "Compress log files before archival"
+
+  portfolio_cost_signal:
+    impressive_to_mention: "This project costs $X per month at current scale. At 10x users it would cost $Y. I would add caching at Z users to control growth."
+    interview_question_enabled: "Tell me about your experience managing infrastructure costs"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 19: DATA PRIVACY AND COMPLIANCE
+# Legal exposure is career-ending. Design privacy in from the start.
+# ─────────────────────────────────────────────────────────────────────────────
+
+data_privacy:
+
+  privacy_by_design:
+    principles:
+      - "Collect minimum data — if you do not need it, do not collect it"
+      - "Purpose limitation — data collected for X cannot be used for Y"
+      - "Storage limitation — data kept only as long as necessary"
+      - "Data minimization — aggregate and anonymize before storing where possible"
+      - "User control — users can see, export, and delete their data"
+
+  gdpr_requirements:
+    applies_to: "Any product used by EU residents — regardless of where the company is"
+    right_to_access:
+      requirement: "User can request all data held about them"
+      implementation: "Data export endpoint returning all user data as JSON or CSV"
+    right_to_deletion:
+      requirement: "User can request all their data be deleted"
+      implementation: "Cascade delete from all tables. Anonymize data used in aggregates."
+      timeline: "Within 30 days of request"
+    right_to_portability:
+      requirement: "User can export their data in a machine-readable format"
+      implementation: "JSON export endpoint"
+    lawful_basis:
+      options: "Consent | Contract | Legitimate Interest | Legal Obligation"
+      for_portfolio_projects: "Contract — user agreed to terms by creating an account"
+
+  data_classification:
+    pii:
+      definition: "Personally Identifiable Information — can identify a specific person"
+      examples: "Name, email, phone, IP address, device ID, location, biometrics"
+      requirements:
+        - "Encrypted at rest (column-level for sensitive fields)"
+        - "Never logged — not even in debug logs"
+        - "Access limited to minimum necessary roles"
+        - "Deletion implemented and tested"
+    sensitive_pii:
+      definition: "Information that could cause harm if exposed"
+      examples: "Health data, financial data, political views, sexual orientation"
+      additional_requirements:
+        - "Explicit consent required for collection"
+        - "Separate storage from general application data"
+        - "Stricter access controls and audit logging"
+
+  consent_management:
+    cookie_consent: "Required in EU. Required in California. Implementing it everywhere is simplest."
+    marketing_emails: "Explicit opt-in required. Unsubscribe link in every email."
+    data_sharing: "Explicit opt-in for sharing with any third party"
+    rule: "Default to no consent. Require users to explicitly opt in."
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 20: AI ETHICS AND SAFETY STANDARDS
+# For any product that uses AI — these are non-negotiable.
+# ─────────────────────────────────────────────────────────────────────────────
+
+ai_ethics:
+
+  core_principles:
+    transparency:
+      - "Users must know when they are interacting with AI — not a human"
+      - "Users must understand what the AI can and cannot do"
+      - "AI confidence or uncertainty must be communicated — not hidden"
+      - "Sources of AI-generated content must be citable where possible"
+    fairness:
+      - "Evaluate outputs for bias before deploying to users"
+      - "Test with diverse inputs — different roles, backgrounds, experience levels"
+      - "Document known biases and their mitigations"
+      - "Do not optimize for engagement at the expense of accuracy"
+    accountability:
+      - "Log every AI decision that affects a user outcome"
+      - "Implement human review for high-stakes AI decisions"
+      - "Build feedback mechanisms — users must be able to flag wrong outputs"
+      - "Have a clear process for correcting AI errors that affected users"
+
+  hallucination_management:
+    definition: "AI generates confident-sounding false information"
+    risk_level_by_use_case:
+      high_risk: "Medical advice, legal advice, financial advice, safety decisions"
+      medium_risk: "Career advice, technical recommendations, code generation"
+      low_risk: "Creative writing, brainstorming, summarization"
+    mitigation_by_risk:
+      high_risk:
+        - "Never use LLM alone — require human review"
+        - "Add disclaimer: 'This is AI-generated. Verify with a qualified professional.'"
+        - "Cite sources for every claim"
+      medium_risk:
+        - "Ground responses in retrieved facts where possible (RAG)"
+        - "Ask model to express uncertainty — 'I am not sure, but...'"
+        - "Provide feedback mechanism for incorrect outputs"
+      low_risk:
+        - "Standard quality review"
+        - "User understands this is generative content"
+
+  agent_safety_standards:
+    for_agentic_systems:
+      - "Agents must not take irreversible actions without explicit user confirmation"
+      - "Agents must have a clear 'stop' mechanism the user controls"
+      - "Agent actions must be logged with full context for audit"
+      - "Agents must not access more resources than the task requires (principle of least privilege)"
+      - "Agents must handle tool failures gracefully — not silently skip them"
+    adversarial_robustness:
+      - "Test for prompt injection — user input that hijacks agent behavior"
+      - "Validate all tool inputs before execution"
+      - "Implement output filtering for harmful content"
+      - "Rate limit agent actions to prevent runaway loops"
+
+  bias_evaluation_checklist:
+    before_deploying_any_ai_feature:
+      - "Tested with users from different geographic regions"
+      - "Tested with different seniority levels"
+      - "Tested with different technical backgrounds"
+      - "Tested with underrepresented groups in the target domain"
+      - "Outputs evaluated by someone other than the developer who built it"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 21: FEEDBACK LOOPS
+# A product is not done at deployment. It is done when users succeed with it.
+# ─────────────────────────────────────────────────────────────────────────────
+
+feedback_loops:
+
+  instrumentation_hierarchy:
+    level_1_did_it_work:
+      metrics:
+        - "Error rate — what percentage of operations failed?"
+        - "Completion rate — what percentage of users completed the key flow?"
+        - "Time to complete — how long does the critical path take?"
+      implementation: "Application logging + error tracking (Sentry)"
+
+    level_2_was_it_useful:
+      metrics:
+        - "Return rate — do users come back after their first session?"
+        - "Feature adoption — what percentage of users use each feature?"
+        - "Drop-off points — where do users abandon the flow?"
+      implementation: "Product analytics (PostHog, Mixpanel, or custom)"
+
+    level_3_did_it_achieve_the_goal:
+      metrics:
+        - "Outcome metrics specific to the product purpose"
+        - "For career platform: job applications submitted, interviews scheduled"
+        - "For data pipeline: pipeline reliability, data freshness SLA"
+        - "For ML platform: model deployment success rate, inference accuracy"
+      implementation: "Custom events tracked against business outcomes"
+
+  feedback_collection:
+    passive:
+      - "Error tracking — every unhandled exception captured automatically"
+      - "Performance monitoring — p95 latency on every endpoint"
+      - "Usage analytics — which features are used vs ignored"
+    active:
+      - "In-product rating — thumbs up/down on AI outputs"
+      - "Exit surveys — why are users leaving?"
+      - "Success celebrations — track when users achieve their goal"
+    qualitative:
+      - "User interviews — talk to 5 real users every month"
+      - "Session recordings — watch users use the product (with consent)"
+      - "Support tickets — every support ticket is a product failure"
+
+  the_activation_metric:
+    definition: "The single action that predicts whether a user will become a long-term user"
+    examples:
+      - "Aha moment for Slack: sending your first message to a teammate"
+      - "Aha moment for GitHub: creating your first repository"
+      - "Aha moment for 3Netra-AI: completing your first full project pipeline"
+    rule: "Identify your activation metric before launch. Optimize for it above all others."
+
+  feature_flags:
+    purpose: "Deploy code to production before exposing it to users. Decouple deployment from release."
+    use_cases:
+      - "Roll out to 5% of users first — catch issues before full release"
+      - "A/B test two implementations — measure which performs better"
+      - "Kill switch — disable a feature instantly without a deploy"
+      - "Beta testing — enable for specific users before general availability"
+    implementation: "Simple boolean environment variables for portfolio. LaunchDarkly or Unleash for production."
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 22: DEPENDENCY MANAGEMENT
+# Every dependency is a bet on someone else's judgment and maintenance capacity.
+# ─────────────────────────────────────────────────────────────────────────────
+
+dependency_management:
+
+  evaluation_criteria:
+    before_adding_any_dependency:
+      - "Is this dependency actively maintained? — last commit within 6 months"
+      - "Does it have a track record? — over 1 year of production use, over 1K GitHub stars"
+      - "What is the license? — MIT/Apache 2.0 are safe. GPL can be problematic."
+      - "What is the dependency's dependency tree? — deep trees = more attack surface"
+      - "Could we implement this ourselves in under 4 hours? — if yes, do not add the dependency"
+      - "Does this dependency have known security vulnerabilities? — check CVE database"
+
+    red_flags:
+      - "Last commit more than 1 year ago with open issues"
+      - "Single maintainer with no succession plan for a critical dependency"
+      - "No semantic versioning — breaking changes without warning"
+      - "Package that was recently transferred to an unknown owner"
+      - "Very low download count for a dependency claiming production use"
+
+  version_pinning:
+    rule: "Pin exact versions in production. Use ranges only in libraries."
+    rationale: "npm install or pip install on Monday and Friday should produce identical results"
+    implementation:
+      python: "requirements.txt with exact versions. Use pip-compile to manage."
+      node: "package-lock.json committed to version control. Never .gitignored."
+    automated_updates: "Dependabot or Renovate for automated security patch PRs"
+
+  security_scanning:
+    python: "pip audit — runs against PyPI advisory database"
+    node: "npm audit — runs automatically on install"
+    rule: "Block merges that introduce critical severity vulnerabilities"
+    false_positive_policy: "Document why a vulnerability is acceptable. Review quarterly."
+
+  the_leftpad_lesson:
+    event: "In 2016, a developer unpublished a 17-line npm package called left-pad, breaking thousands of builds including Babel and React"
+    lesson: "Any dependency is a single point of failure. The smaller the dependency, the more likely you should implement it yourself."
+    rule: "Never add a dependency for under 20 lines of code. Write the code."

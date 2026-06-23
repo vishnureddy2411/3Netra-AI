@@ -255,3 +255,20 @@ export const SKIP_SAVE_TYPES = ['thinking']
 
 // Max messages before showing "Start New Chat" banner
 export const MAX_SESSION_MESSAGES = 50
+
+export async function deleteProject(projectId: string): Promise<boolean> {
+  try {
+    const { getSession } = await import('./auth')
+    const session = await getSession()
+    const token   = session?.access_token || ''
+    const res     = await fetch(`${API_BASE}/projects/${projectId}`, {
+      method:  'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    const data = await res.json()
+    return data.success === true
+  } catch (err) {
+    console.error('Failed to delete project:', err)
+    return false
+  }
+}

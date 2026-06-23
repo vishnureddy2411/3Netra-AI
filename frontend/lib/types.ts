@@ -24,6 +24,7 @@ export interface GraphSummary {
   total_pages: number
   total_components: number
   total_api_routes: number
+  total_data_models?: number
 }
 
 export interface ProjectIdea {
@@ -172,7 +173,7 @@ export type MessageContent =
     }
   | { type: 'chosen'; choice: string }
   | { type: 'diagrams'; diagrams: Diagram[] }
-  | { type: 'graph'; summary: GraphSummary; elapsed: number }
+  | { type: 'graph'; summary: GraphSummary; elapsed: number; graph?: any }
   | { type: 'complete'; projectId: string }
   | {
       type: 'download'

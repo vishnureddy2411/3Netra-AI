@@ -19,9 +19,9 @@ import DiagramsCard from '../components/cards/DiagramsCard'
 import GraphCard from '../components/cards/GraphCard'
 import NewSessionCard from '../components/cards/NewSessionCard'
 import DownloadCard from '../components/cards/DownloadCard'
-import PreviewPanel from '../components/panels/PreviewPanel'
 import Sidebar from '../components/sidebar/Sidebar'
 import UserMenu from '../components/sidebar/UserMenu'
+import PreviewPanel from '../components/panels/PreviewPanel'
 
 import {
   buildEnrichedIdea,
@@ -52,6 +52,8 @@ import type {
   DeepAnalysisResult,
   SelectedProject,
   DiscussionTurn,
+  Diagram,
+  GraphSummary,
 } from '../lib/types'
 
 // ─────────────────────────────────────────────
@@ -129,6 +131,7 @@ export default function Home() {
   const [viewingSession,        setViewingSession]        = useState<string | null>(null)
   const [sessionHistory,        setSessionHistory]        = useState<Message[]>([])
   const [isLoadingHistory,      setIsLoadingHistory]      = useState(false)
+  const [cameFromGate,          setCameFromGate]          = useState(false)
   const [previewContent,        setPreviewContent]        = useState<any>(null)
 
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -237,9 +240,16 @@ export default function Home() {
         message: 'Pre-wiring all pages, components, and API routes...',
       })
       const r4 = await runProjectGraph(projectId, chosenIdea)
-      updateMsg(t4, { type: 'graph', summary: r4.result.summary, elapsed: r4.result.elapsed_seconds })
+      updateMsg(t4, {
+        type:    'graph',
+        summary: r4.result.summary,
+        elapsed: r4.result.elapsed_seconds,
+        graph:   r4.result.graph,
+      })
+
       addMsg({ type: 'complete', projectId })
       setShowNewSession(true)
+      setSidebarRefresh(prev => prev + 1)
     } catch (err) {
       addMsg({ type: 'error', message: err instanceof Error ? err.message : 'Phase 2 failed' })
     } finally {
@@ -265,10 +275,9 @@ export default function Home() {
       setActiveStage('analysis')
       updateMsg(thinkId, {
         type: 'thinking', stage: 'Expert Analysis',
-        message: '5 specialists analyzing market fit and role alignment...',
+        message: '5 adversarial agents running blind parallel analysis — no agent sees another\'s output...',
       })
-
-      const r2           = await runCouncil(projectId, context || intake.role, intake)
+      const r2               = await runCouncil(projectId, context || intake.role, intake)
       const verdict: Verdict = r2.result.verdict
       const verdictSummary   = verdict.verdict_reasoning?.slice(0, 300) || ''
 
@@ -304,8 +313,8 @@ export default function Home() {
     setActiveStage('research')
 
     try {
-      const r1          = await runResearch(enrichedIdea, intake)
-      const projectId   = r1.project_id
+      const r1              = await runResearch(enrichedIdea, intake)
+      const projectId       = r1.project_id
       const researchSummary = JSON.stringify(r1.report?.summary || {})
 
       setActiveProjectId(projectId)
@@ -314,7 +323,7 @@ export default function Home() {
       setActiveStage('analysis')
       updateMsg(thinkId, {
         type: 'thinking', stage: 'Expert Analysis',
-        message: '5 specialists debating — Tech Lead, Market Analyst, Risk Manager, UX Designer, Career Coach...',
+        message: '5 adversarial agents debating independently — Systems Architect, Skeptical Interviewer, Career Strategist, Risk Engineer, Innovation Scout...',
       })
 
       const r2               = await runCouncil(projectId, enrichedIdea, intake)
@@ -411,8 +420,7 @@ export default function Home() {
     if (!pendingProject || !intakeData) return
     const project   = pendingProject
     const projectId = (project.projectId && project.projectId !== '')
-      ? project.projectId
-      : (activeProjectId || '')
+      ? project.projectId : (activeProjectId || '')
 
     setPendingProject(null)
     setConfirmGateMsgId(null)
@@ -422,6 +430,7 @@ export default function Home() {
     const savedProject = await createProject(project, intakeData.role, intakeData.purpose)
     if (savedProject) {
       setDbProjectId(savedProject.id)
+      setSidebarRefresh(prev => prev + 1)
       const session = await createSession(savedProject.id, 6, 'planning', 'Planning Session 1')
       if (session) {
         setActiveSessionId(session.id)
@@ -494,6 +503,7 @@ export default function Home() {
     setConfirmGateMsgId(null)
     setDiscussionMsgId(null)
     setIsDiscussing(false)
+    setSidebarRefresh(prev => prev + 1)
     addMsg({ type: 'chosen', choice: '→ New session started — project memory preserved' })
   }
 
@@ -649,6 +659,9 @@ export default function Home() {
     setDbProjectId(null)
     setActiveSessionId(null)
     setShowNewSession(false)
+    setViewingSession(null)
+    setSessionHistory([])
+    setPreviewContent(null)
     window.history.pushState({}, '', '/')
   }
 
@@ -679,11 +692,47 @@ export default function Home() {
     if (intakeData) await runFlow2(newText, intakeData)
   }
 
-  // ── Layout ────────────────────────────────────
+  // ── Sidebar props ─────────────────────────────
 
-  const hasVisuals    = messages.some(m => ['diagrams', 'graph'].includes(m.content.type))
-  const leftMessages  = messages.filter(m => !['diagrams', 'graph'].includes(m.content.type))
-  const rightMessages = messages.filter(m =>  ['diagrams', 'graph'].includes(m.content.type))
+  const sidebarProps = {
+    activeProjectId:  dbProjectId,
+    activeSessionId,
+    refreshTrigger:   sidebarRefresh,
+    onProjectSelect:  (_project: any) => {},
+    onSessionSelect:  async (project: any, sessionId: string) => {
+      setCameFromGate(gateStep < 5)
+      setGateStep(5)
+      setDbProjectId(project.id)
+      setGateData({
+        project_type: 'existing',
+        role:         project.target_role || '',
+        idea:         project.full_idea || '',
+        purpose:      project.purpose || 'portfolio',
+      })
+      setMessages([])
+      setViewingSession(sessionId)
+      setIsLoadingHistory(true)
+      try {
+        const { getSessionMessages } = await import('../lib/projects')
+        const msgs = await getSessionMessages(project.id, sessionId)
+        const converted: Message[] = msgs.map((m: any) => ({
+          id:      m.id,
+          content: m.content as MessageContent,
+        }))
+        setSessionHistory(converted)
+      } catch {
+        setSessionHistory([])
+      } finally {
+        setIsLoadingHistory(false)
+      }
+    },
+    onNewProject:     handleRethink,
+    onSignOut:        handleSignOut,
+    role:             gateData.role,
+    purpose:          gateData.purpose,
+    isCollapsed:      !sidebarOpen,
+    onToggle:         () => setSidebarOpen(!sidebarOpen),
+  }
 
   // ── Render message ────────────────────────────
 
@@ -808,9 +857,28 @@ export default function Home() {
       </div>
     )
 
-    if (content.type === 'diagrams') return <DiagramsCard diagrams={content.diagrams} />
-    if (content.type === 'graph')   return <GraphCard summary={content.summary} elapsed={content.elapsed} />
+    if (content.type === 'diagrams') return (
+      <DiagramsCard
+        diagrams={content.diagrams}
+        onOpenPreview={(diagrams, activeIndex) => setPreviewContent({
+          type: 'diagrams',
+          diagrams,
+          activeIndex,
+        })}
+      />
+    )
 
+   if (content.type === 'graph') return (
+      <GraphCard
+        summary={content.summary}
+        elapsed={content.elapsed}
+        onOpenPreview={(graph) => setPreviewContent({
+          type:    'graph',
+          summary: graph,
+          graph:   content.graph,
+        })}
+      />
+    )
     if (content.type === 'complete') return (
       <div className="space-y-3">
         <div className="flex items-center gap-3 bg-[#1a2e1a] border border-[#2ea04326] rounded-xl px-4 py-3">
@@ -820,7 +888,7 @@ export default function Home() {
             <p className="text-xs text-[#484f58] font-mono">id: {content.projectId}</p>
           </div>
         </div>
-        {!showNewSession ? null : (
+        {showNewSession && (
           <NewSessionCard
             reason="pipeline_complete"
             projectTitle={gateData.idea || 'Your Project'}
@@ -831,6 +899,7 @@ export default function Home() {
         )}
       </div>
     )
+
     if (content.type === 'download') return (
       <DownloadCard
         filename={content.filename}
@@ -839,6 +908,7 @@ export default function Home() {
         label={content.label}
       />
     )
+
     if (content.type === 'error') return (
       <div className="flex items-start gap-3 bg-[#2d1b1b] border border-[#f8514926] rounded-xl px-4 py-3">
         <div className="w-1.5 h-1.5 rounded-full bg-[#f85149] flex-shrink-0 mt-1" />
@@ -868,38 +938,6 @@ export default function Home() {
         </div>
       </div>
     )
-  }
-
-  // ── Sidebar props ─────────────────────────────
-
-  const sidebarProps = {
-    activeProjectId: dbProjectId,
-    activeSessionId,
-    refreshTrigger: sidebarRefresh,
-    onProjectSelect: (project: any) => { window.location.href = `/?project=${project.id}` },
-    onSessionSelect: async (project: any, sessionId: string) => {
-      setViewingSession(sessionId)
-      setIsLoadingHistory(true)
-      try {
-        const { getSessionMessages } = await import('../lib/projects')
-        const msgs = await getSessionMessages(project.id, sessionId)
-        const converted: Message[] = msgs.map((m: any) => ({
-          id:      m.id,
-          content: m.content as MessageContent,
-        }))
-        setSessionHistory(converted)
-      } catch {
-        setSessionHistory([])
-      } finally {
-        setIsLoadingHistory(false)
-      }
-    },
-    onNewProject:  handleRethink,
-    onSignOut:     handleSignOut,
-    role:          gateData.role,
-    purpose:       gateData.purpose,
-    isCollapsed:   !sidebarOpen,
-    onToggle:      () => setSidebarOpen(!sidebarOpen),
   }
 
   // ── Gate screen ───────────────────────────────
@@ -991,7 +1029,15 @@ export default function Home() {
 
           <div className="flex items-center gap-3">
             {isRunning && activeStage && <PipelineProgress activeStage={activeStage} />}
-            {messages.length > 0 && !isRunning && !pendingProject && (
+            {dbProjectId && !isRunning && !pendingProject && !viewingSession && (
+              <button
+                onClick={() => window.location.href = `/project/${dbProjectId}`}
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-[#161b22] border border-[#30363d] text-[#484f58] hover:text-[#e6edf3] hover:border-[#484f58] rounded-lg transition-colors font-mono"
+              >
+                📋 Project
+              </button>
+            )}
+            {messages.length > 0 && !isRunning && !pendingProject && !viewingSession && (
               <button onClick={handleRethink}
                 className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-[#161b22] border border-[#30363d] text-[#8b949e] hover:text-[#e6edf3] hover:border-[#8b949e] rounded-lg transition-colors font-mono">
                 <span className="text-[#f0b429]">+</span> new project
@@ -1009,6 +1055,7 @@ export default function Home() {
 
         <main className="flex-1 overflow-y-auto">
           <div className="px-5 py-5">
+
             {/* Session history view */}
             {viewingSession ? (
               <div className="max-w-2xl mx-auto">
@@ -1017,13 +1064,19 @@ export default function Home() {
                     <div className="text-xs font-mono text-[#484f58] uppercase tracking-widest mb-1">
                       Session History — Read Only
                     </div>
-                    <p className="text-xs text-[#30363d]">
-                      {sessionHistory.length} messages
-                    </p>
+                    <p className="text-xs text-[#30363d]">{sessionHistory.length} messages</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => { setViewingSession(null); setSessionHistory([]) }}
+                      onClick={() => {
+                        setViewingSession(null)
+                        setSessionHistory([])
+                        if (cameFromGate) {
+                          setGateStep(1)
+                          setMessages([])
+                          setCameFromGate(false)
+                        }
+                      }}
                       className="text-xs px-3 py-1.5 bg-[#161b22] border border-[#30363d] text-[#484f58] hover:text-[#e6edf3] rounded-lg transition-colors font-mono"
                     >
                       ← Back
@@ -1059,6 +1112,7 @@ export default function Home() {
                   </div>
                 )}
               </div>
+
             ) : messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
                 <div className="w-14 h-14 rounded-2xl bg-[#f0b429]/10 border border-[#f0b429]/20 flex items-center justify-center mb-5">
@@ -1081,22 +1135,13 @@ export default function Home() {
                   )}
                 </div>
               </div>
-            ) : hasVisuals ? (
-              <div className="grid grid-cols-2 gap-5 items-start max-w-5xl mx-auto">
-                <div className="space-y-3">
-                  <GateSummary gateData={gateData} onUpdate={handleGateUpdate} />
-                  {leftMessages.map(msg => <div key={msg.id}>{renderMessage(msg)}</div>)}
-                </div>
-                <div className="space-y-3 sticky top-20">
-                  {rightMessages.map(msg => <div key={msg.id}>{renderMessage(msg)}</div>)}
-                </div>
-              </div>
             ) : (
               <div className="max-w-2xl mx-auto space-y-3">
                 <GateSummary gateData={gateData} onUpdate={handleGateUpdate} />
                 {messages.map(msg => <div key={msg.id}>{renderMessage(msg)}</div>)}
               </div>
             )}
+
             <div ref={bottomRef} />
           </div>
         </main>
@@ -1109,15 +1154,16 @@ export default function Home() {
                 placeholder={
                   gateStep < 5 ? 'Complete the setup above first...'
                   : pendingProject ? 'Confirm or discuss your selected project above first...'
+                  : viewingSession ? 'Resume project to continue chatting...'
                   : 'Describe a project, ask about architecture, debug code, plan your career...'
                 }
-                disabled={isRunning || gateStep < 5 || !!pendingProject || isDiscussing}
+                disabled={isRunning || gateStep < 5 || !!pendingProject || isDiscussing || !!viewingSession}
                 rows={2}
                 className="flex-1 bg-transparent text-sm text-[#e6edf3] placeholder-[#484f58] outline-none resize-none leading-relaxed disabled:opacity-40"
               />
               <div className="flex flex-col justify-end">
                 <button onClick={handleSend}
-                  disabled={isRunning || !input.trim() || gateStep < 5 || !!pendingProject || isDiscussing}
+                  disabled={isRunning || !input.trim() || gateStep < 5 || !!pendingProject || isDiscussing || !!viewingSession}
                   className="px-4 py-2 bg-[#f0b429] text-[#0d1117] font-semibold rounded-lg hover:bg-[#e0a419] disabled:opacity-30 disabled:cursor-not-allowed transition-all text-sm">
                   {isRunning ? (
                     <span className="flex items-center gap-1">
@@ -1137,6 +1183,7 @@ export default function Home() {
         </footer>
       </div>
 
+      {/* Preview panel */}
       <PreviewPanel
         content={previewContent}
         onClose={() => setPreviewContent(null)}

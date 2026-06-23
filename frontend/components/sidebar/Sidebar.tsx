@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import UserMenu from './UserMenu'
-import { listProjects, listSessions } from '../../lib/projects'
+import { listProjects, listSessions, deleteProject } from '../../lib/projects'
 import type { UserProject } from '../../lib/supabase'
 
 interface Props {
@@ -80,6 +80,7 @@ export default function Sidebar({
   const [expandedProject,  setExpandedProject]  = useState<string | null>(null)
   const [projectSessions,  setProjectSessions]  = useState<Record<string, any[]>>({})
   const [loadingSessions,  setLoadingSessions]  = useState<Record<string, boolean>>({})
+  const [deleteConfirm,    setDeleteConfirm]    = useState<string | null>(null)
 
   const loadProjects = useCallback(async () => {
     try {
@@ -306,45 +307,91 @@ export default function Sidebar({
 
               return (
                 <div key={project.id}>
+
                   {/* Project row */}
-                  <button
-                    onClick={() => handleProjectClick(project)}
-                    className={`w-full text-left px-3 py-2.5 rounded-xl transition-all ${
-                      isActive ? 'bg-[#1c2333]' : 'hover:bg-[#161b22]'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <span className={`text-xs font-medium truncate flex-1 ${
-                        isActive ? 'text-[#e6edf3]' : 'text-[#8b949e]'
-                      }`}>
-                        {project.title}
-                      </span>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <span className={`text-xs px-1.5 py-0.5 rounded-full border font-mono ${statusColor}`}>
-                          {project.overall_status === 'in_progress' ? 'Active' :
-                           project.overall_status.charAt(0).toUpperCase() + project.overall_status.slice(1)}
+                  <div className={`flex items-center gap-1 rounded-xl transition-all group ${
+                    isActive ? 'bg-[#1c2333]' : 'hover:bg-[#161b22]'
+                  }`}>
+                    <button
+                      onClick={() => handleProjectClick(project)}
+                      className="flex-1 text-left px-3 py-2.5 min-w-0"
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className={`text-xs font-semibold truncate flex-1 ${
+                          isActive ? 'text-[#e6edf3]' : 'text-[#c9d1d9]'
+                        }`}>
+                          {project.title}
                         </span>
-                        <span className="text-[#484f58] text-xs">
-                          {isExpanded ? '▾' : '▸'}
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <span className={`text-xs px-1.5 py-0.5 rounded-full border font-mono ${statusColor}`}>
+                            {project.overall_status === 'in_progress' ? 'Active' :
+                             project.overall_status.charAt(0).toUpperCase() + project.overall_status.slice(1)}
+                          </span>
+                          <span className="text-[#484f58] text-xs">
+                            {isExpanded ? '▾' : '▸'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 bg-[#21262d] rounded-full h-0.5">
+                          <div
+                            className={`h-0.5 rounded-full ${
+                              project.progress_percentage === 100 ? 'bg-[#3fb950]' :
+                              project.progress_percentage >= 50  ? 'bg-[#58a6ff]' :
+                              'bg-amber-400'
+                            }`}
+                            style={{ width: `${project.progress_percentage || 0}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-[#30363d] flex-shrink-0">
+                          {timeAgo(project.updated_at)}
                         </span>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 bg-[#21262d] rounded-full h-0.5">
-                        <div
-                          className={`h-0.5 rounded-full ${
-                            project.progress_percentage === 100 ? 'bg-[#3fb950]' :
-                            project.progress_percentage >= 50  ? 'bg-[#58a6ff]' :
-                            'bg-amber-400'
-                          }`}
-                          style={{ width: `${project.progress_percentage || 0}%` }}
-                        />
+                    </button>
+
+                    {/* Delete button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setDeleteConfirm(deleteConfirm === project.id ? null : project.id)
+                      }}
+                      className="opacity-0 group-hover:opacity-100 flex-shrink-0 w-6 h-6 flex items-center justify-center text-[#484f58] hover:text-[#f85149] hover:bg-[#2d1b1b] rounded transition-all mr-1"
+                      title="Delete project"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  {/* Delete confirmation — inline, no popup */}
+                  {deleteConfirm === project.id && (
+                    <div className="mx-2 mb-1 bg-[#2d1b1b] border border-[#f85149]/20 rounded-xl p-3">
+                      <p className="text-xs text-[#f85149] mb-2 leading-relaxed">
+                        Delete <span className="font-semibold">"{project.title}"</span>?
+                        All sessions will be removed. This cannot be undone.
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation()
+                            const ok = await deleteProject(project.id)
+                            if (ok) {
+                              setDeleteConfirm(null)
+                              loadProjects()
+                            }
+                          }}
+                          className="flex-1 py-1.5 bg-[#f85149] text-white text-xs font-semibold rounded-lg hover:bg-[#e0403a] transition-colors"
+                        >
+                          Delete
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setDeleteConfirm(null) }}
+                          className="flex-1 py-1.5 bg-[#161b22] border border-[#30363d] text-[#484f58] text-xs rounded-lg hover:text-[#e6edf3] transition-colors"
+                        >
+                          Cancel
+                        </button>
                       </div>
-                      <span className="text-xs text-[#30363d] flex-shrink-0">
-                        {timeAgo(project.updated_at)}
-                      </span>
                     </div>
-                  </button>
+                  )}
 
                   {/* Sessions panel — expanded */}
                   {isExpanded && (
@@ -363,7 +410,6 @@ export default function Sidebar({
                         <div className="py-1">
                           {stages.map((stage: any) => (
                             <div key={stage.stage_number}>
-                              {/* Stage header */}
                               <div className="px-3 py-1.5 flex items-center gap-1.5">
                                 <span className="text-xs">
                                   {STAGE_ICONS[stage.stage_name] || '💬'}
@@ -372,8 +418,6 @@ export default function Sidebar({
                                   {STAGE_LABELS[stage.stage_name] || stage.stage_name}
                                 </span>
                               </div>
-
-                              {/* Sessions in this stage */}
                               {stage.sessions.map((session: any) => (
                                 <button
                                   key={session.id}
@@ -391,18 +435,14 @@ export default function Sidebar({
                                         <div className="w-1.5 h-1.5 rounded-full bg-[#3fb950] flex-shrink-0" />
                                       )}
                                       <span className={`text-xs truncate ${
-                                        session.id === activeSessionId
-                                          ? 'text-[#e6edf3]'
-                                          : 'text-[#8b949e]'
+                                        session.id === activeSessionId ? 'text-[#e6edf3]' : 'text-[#8b949e]'
                                       }`}>
                                         Session {session.session_number}
                                       </span>
                                     </div>
-                                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                                      <span className="text-xs text-[#30363d]">
-                                        {session.message_count}msg
-                                      </span>
-                                    </div>
+                                    <span className="text-xs text-[#30363d]">
+                                      {session.message_count}msg
+                                    </span>
                                   </div>
                                   <div className="text-xs text-[#30363d] mt-0.5 pl-3">
                                     {timeAgo(session.created_at)}

@@ -123,3 +123,5 @@ pytest>=8.0.0
 
 # pytest-asyncio: lets pytest test our async FastAPI functions
 pytest-asyncio>=0.24.0
+
+pyyaml>=6.0.1

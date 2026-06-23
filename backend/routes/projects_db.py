@@ -653,3 +653,38 @@ async def get_session_messages(
             status_code=500,
             content={"success": False, "error": str(e)}
         )
+        
+        
+@router.get("/projects/{project_id}/artifacts")
+async def get_project_artifacts(
+    project_id: str,
+    request: Request,
+    auth=Depends(require_auth),
+):
+    """Gets all artifacts for a project — graph, diagrams, career output."""
+    try:
+        supabase = get_supabase()
+        user_id  = request.state.user_id
+
+        result = supabase.table("project_artifacts")\
+            .select("*")\
+            .eq("project_id", project_id)\
+            .eq("user_id", user_id)\
+            .order("created_at", desc=True)\
+            .execute()
+
+        artifacts = {}
+        for artifact in (result.data or []):
+            artifacts[artifact["artifact_type"]] = artifact
+
+        return JSONResponse({
+            "success":   True,
+            "artifacts": artifacts,
+        })
+
+    except Exception as e:
+        logger.error(f"Get artifacts failed: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": str(e)}
+        )

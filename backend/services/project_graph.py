@@ -1,20 +1,17 @@
 """
 backend/services/project_graph.py
 
-Generates a complete project graph for the selected project.
-This is the BRAIN of the entire build process.
-Every subsequent agent (Quiz, Code Gen, Preview, Career) reads this.
+Project Graph Generator — The Brain of 3Netra-AI
 
-The graph contains:
-- Every page with exact path, components, API calls, auth requirements
-- Every shared component with usage map
-- Every API route with method, path, auth, input/output
-- Full navigation structure
-- Tech stack decisions
+This graph is the source of truth for ALL future stages.
+Every agent in every stage reads from this graph.
+It grows and updates as code is generated.
 
-If LLM generation fails, the fallback uses the actual project idea
-and tech stack to generate a reasonable project-specific graph
-instead of hardcoded generic values.
+Generation strategy:
+1. Try LLM with full context (verdict + diagrams + scope)
+2. If JSON malformed: repair truncation
+3. If repair fails: smart domain-specific fallback
+4. Store full graph in project_artifacts for all future agents
 """
 
 import json
@@ -31,290 +28,317 @@ async def generate_project_graph(
     verdict: dict | None = None,
     diagrams: list | None = None,
 ) -> dict:
-    """
-    Generates project-specific graph using all available context.
-    Uses Sonnet for accuracy — this graph drives all future stages.
-    """
     start = time.time()
 
     try:
         from services.llm_client import call_strong
 
-        # Extract context from verdict if available
-        tech_stack    = verdict.get("recommended_stack", []) if verdict else []
-        v1_scope      = verdict.get("v1_scope", []) if verdict else []
-        career_value  = verdict.get("career_value", "") if verdict else ""
-        tech_str      = ", ".join(tech_stack) if tech_stack else "FastAPI, React, PostgreSQL, Docker"
-        scope_str     = "\n".join(f"- {s}" for s in v1_scope) if v1_scope else "Core MVP features"
+        tech_stack   = verdict.get("recommended_stack", []) if verdict else []
+        v1_scope     = verdict.get("v1_scope", []) if verdict else []
+        career_value = verdict.get("career_value", "") if verdict else ""
+        tech_str     = ", ".join(tech_stack) if tech_stack else "FastAPI, React, PostgreSQL, Docker"
+        scope_str    = "\n".join(f"- {s}" for s in v1_scope) if v1_scope else "Core MVP features"
 
-        prompt = f"""You are a senior software architect designing the complete project structure.
+        prompt = f"""You are a senior software architect. Generate the COMPLETE project graph.
 
 PROJECT: {idea}
 TECH STACK: {tech_str}
 V1 SCOPE:
 {scope_str}
+CAREER VALUE: {career_value}
 
-Design the COMPLETE project graph for this specific project.
-Every page, component, and API route must be specific to THIS project — not generic.
+Every page, component, and API route must be SPECIFIC to THIS project.
+No generic names. No placeholders. Real names from the project domain.
 
-Return ONLY valid JSON in this exact structure:
+Return ONLY valid JSON — no markdown, no explanation, just the JSON object:
 {{
     "pages": [
         {{
-            "name": "specific page name for THIS project",
+            "name": "specific page name",
             "path": "/exact/path",
             "description": "what this page does in THIS project",
             "navigates_to": ["/other/paths"],
             "api_calls": ["METHOD /api/endpoint"],
             "components": ["ComponentName1", "ComponentName2"],
-            "auth_required": true or false
+            "auth_required": true
         }}
     ],
     "shared_components": [
         {{
             "name": "ComponentName",
-            "description": "what it does",
-            "used_by": ["Page Name 1", "Page Name 2"]
+            "description": "specific purpose in this project",
+            "used_by": ["Page Name 1", "Page Name 2"],
+            "props": ["key prop 1", "key prop 2"]
         }}
     ],
     "api_routes": [
         {{
-            "method": "GET or POST or PUT or DELETE",
+            "method": "GET",
             "path": "/api/specific/endpoint",
             "description": "what this endpoint does",
-            "auth_required": true or false,
-            "input": "request body or params description",
-            "output": "response description"
+            "auth_required": true,
+            "input": "request description",
+            "output": "response description",
+            "used_by_pages": ["Page Name"]
         }}
     ],
     "navigation_structure": {{
         "public_routes": ["/", "/login"],
         "protected_routes": ["/dashboard"],
-        "default_redirect_after_login": "/dashboard"
+        "default_redirect_after_login": "/dashboard",
+        "nav_groups": [
+            {{"label": "Main", "routes": ["/dashboard", "/data"]}}
+        ]
     }},
     "tech_decisions": {{
-        "frontend": "framework and why",
-        "backend": "framework and why",
-        "database": "database and why",
-        "auth": "auth approach",
-        "deployment": "deployment approach"
-    }}
+        "frontend": "framework and specific reason for THIS project",
+        "backend": "framework and specific reason",
+        "database": "database and why it fits THIS project's data model",
+        "auth": "auth approach and why",
+        "deployment": "deployment strategy",
+        "key_libraries": ["library1 — purpose", "library2 — purpose"]
+    }},
+    "data_models": [
+        {{
+            "name": "ModelName",
+            "table": "table_name",
+            "key_fields": ["field1: type", "field2: type"],
+            "relationships": ["belongs to ModelX", "has many ModelY"]
+        }}
+    ]
 }}
 
-Rules:
-- Minimum 5 pages specific to THIS project
-- Minimum 6 shared components
-- Minimum 8 API routes
-- Every name must reference THIS project's domain
-- No generic placeholder names like "Page1" or "Component1"
-- API routes must match the project's actual functionality"""
+REQUIREMENTS:
+- Minimum 5 pages specific to THIS project domain
+- Minimum 6 shared components with real names
+- Minimum 8 API routes matching actual functionality
+- Data models for every major entity in the project
+- Every name must reference THIS project's specific domain
+- CRITICAL: Return complete valid JSON — close ALL brackets and braces"""
 
         response = await call_strong(
             system=(
-                "You are a senior software architect. "
-                "Generate a complete, project-specific graph. "
-                "Every page, component and route must be specific to the project given. "
-                "Return only valid JSON."
+                "You are a senior software architect generating a project graph. "
+                "Return ONLY valid JSON. No markdown. No explanation. "
+                "CRITICAL: Your JSON must be 100% complete and valid. "
+                "Never truncate. Close every bracket and brace before ending."
             ),
             user=prompt,
-            max_tokens=2000,
+            max_tokens=4000,
         )
 
         cleaned = re.sub(r'```json\s*', '', response)
-        cleaned = re.sub(r'```\s*', '', cleaned).strip()
-        match   = re.search(r'\{.*\}', cleaned, re.DOTALL)
+        cleaned = re.sub(r'```\s*',     '', cleaned).strip()
+        match   = re.search(r'\{.*\}',  cleaned, re.DOTALL)
 
         if match:
-            graph   = json.loads(match.group())
+            raw = match.group()
+
+            # Repair JSON truncation
+            open_braces   = raw.count('{') - raw.count('}')
+            open_brackets = raw.count('[') - raw.count(']')
+
+            if open_braces > 0 or open_brackets > 0:
+                logger.warning(
+                    f"JSON truncated — repairing {open_braces} unclosed braces, "
+                    f"{open_brackets} unclosed brackets"
+                )
+                raw = raw.rstrip(',\n\r\t ')
+                raw += ']' * open_brackets
+                raw += '}' * open_braces
+
+            graph   = json.loads(raw)
             elapsed = round(time.time() - start, 1)
 
             pages      = graph.get("pages", [])
             components = graph.get("shared_components", [])
             routes     = graph.get("api_routes", [])
+            models     = graph.get("data_models", [])
 
-            # Validate — reject if too generic or too small
             if len(pages) < 3 or len(routes) < 3:
-                raise ValueError(f"Graph too small — {len(pages)} pages, {len(routes)} routes")
+                raise ValueError(f"Graph too small: {len(pages)} pages, {len(routes)} routes")
 
             logger.info(
-                f"Project graph complete in {elapsed}s: "
-                f"{len(pages)} pages, {len(components)} components, {len(routes)} routes"
+                f"Project graph generated in {elapsed}s: "
+                f"{len(pages)} pages, {len(components)} components, "
+                f"{len(routes)} routes, {len(models)} data models"
             )
 
-            return {
-                "project_id": project_id,
-                "idea":       idea,
-                "graph":      graph,
-                "elapsed_seconds": elapsed,
-                "summary": {
-                    "total_pages":      len(pages),
-                    "total_components": len(components),
-                    "total_api_routes": len(routes),
-                },
-                "message": (
-                    f"Project graph complete. "
-                    f"{len(pages)} pages, {len(components)} components, "
-                    f"{len(routes)} API routes. All navigation pre-wired."
-                ),
-            }
+            return _build_result(project_id, idea, graph, elapsed)
 
-        raise ValueError("Could not parse project graph JSON")
+        raise ValueError("Could not extract JSON from LLM response")
 
     except Exception as e:
-        logger.warning(f"Project graph LLM failed ({e}) — using smart fallback")
+        logger.error(f"Project graph LLM FAILED — {type(e).__name__}: {e}")
         elapsed = round(time.time() - start, 1)
         graph   = _smart_fallback_graph(idea, verdict)
+        logger.warning(f"Using smart fallback — {len(graph.get('pages', []))} pages generated")
+        return _build_result(project_id, idea, graph, elapsed, fallback=True)
 
-        pages      = graph.get("pages", [])
-        components = graph.get("shared_components", [])
-        routes     = graph.get("api_routes", [])
 
-        return {
-            "project_id": project_id,
-            "idea":       idea,
-            "graph":      graph,
-            "elapsed_seconds": elapsed,
-            "summary": {
-                "total_pages":      len(pages),
-                "total_components": len(components),
-                "total_api_routes": len(routes),
-            },
-            "message": (
-                f"Project graph complete (smart fallback). "
-                f"{len(pages)} pages, {len(components)} components, "
-                f"{len(routes)} API routes."
-            ),
-        }
+def _build_result(project_id, idea, graph, elapsed, fallback=False):
+    pages      = graph.get("pages", [])
+    components = graph.get("shared_components", [])
+    routes     = graph.get("api_routes", [])
+    models     = graph.get("data_models", [])
+
+    return {
+        "project_id": project_id,
+        "idea":       idea,
+        "graph":      graph,
+        "fallback":   fallback,
+        "elapsed_seconds": elapsed,
+        "summary": {
+            "total_pages":       len(pages),
+            "total_components":  len(components),
+            "total_api_routes":  len(routes),
+            "total_data_models": len(models),
+        },
+        "message": (
+            f"Project graph {'(fallback) ' if fallback else ''}complete in {elapsed}s. "
+            f"{len(pages)} pages, {len(components)} components, "
+            f"{len(routes)} API routes, {len(models)} data models. "
+            f"All navigation pre-wired."
+        ),
+    }
 
 
 def _smart_fallback_graph(idea: str, verdict: dict | None = None) -> dict:
-    """
-    Smart fallback — generates project-specific graph from idea text.
-    Much better than hardcoded generic values.
-    Extracts domain keywords from idea to generate relevant names.
-    """
     tech_stack = verdict.get("recommended_stack", []) if verdict else []
-    v1_scope   = verdict.get("v1_scope", []) if verdict else []
+    idea_lower = idea.lower()
 
-    # Extract project domain from idea
-    idea_lower  = idea.lower()
-    idea_words  = idea.split()
-    project_name = " ".join(idea_words[:4]) if len(idea_words) >= 4 else idea[:40]
+    is_ml   = any(w in idea_lower for w in ["ml", "model", "training", "inference", "rag", "llm", "ai", "neural", "recommendation", "classify"])
+    is_data = any(w in idea_lower for w in ["data", "pipeline", "etl", "warehouse", "analytics", "dashboard", "stream", "kafka", "spark"])
 
-    # Determine domain type from idea
-    is_ml     = any(w in idea_lower for w in ["ml", "model", "training", "inference", "rag", "llm", "ai", "deep learning", "neural"])
-    is_data   = any(w in idea_lower for w in ["data", "pipeline", "etl", "warehouse", "analytics", "dashboard", "stream"])
-    is_api    = any(w in idea_lower for w in ["api", "service", "backend", "microservice", "rest", "graphql"])
-    is_web    = any(w in idea_lower for w in ["web", "app", "platform", "portal", "marketplace", "saas"])
-
-    # Generate domain-specific pages
     if is_ml:
         pages = [
-            {"name": "Model Dashboard", "path": "/", "description": f"Overview of {project_name} models and metrics", "navigates_to": ["/models", "/experiments"], "api_calls": ["GET /api/models", "GET /api/metrics"], "components": ["ModelCard", "MetricChart", "Navbar"], "auth_required": False},
-            {"name": "Model Registry", "path": "/models", "description": "Browse and manage ML models", "navigates_to": ["/models/:id", "/experiments"], "api_calls": ["GET /api/models", "POST /api/models"], "components": ["ModelList", "ModelCard", "SearchBar"], "auth_required": True},
-            {"name": "Model Detail", "path": "/models/:id", "description": "View model details, metrics, and predictions", "navigates_to": ["/experiments/:id"], "api_calls": ["GET /api/models/:id", "POST /api/predict"], "components": ["ModelViewer", "MetricChart", "PredictionForm"], "auth_required": True},
-            {"name": "Experiments", "path": "/experiments", "description": "Track and compare training experiments", "navigates_to": ["/experiments/:id"], "api_calls": ["GET /api/experiments", "POST /api/experiments"], "components": ["ExperimentList", "CompareTable", "RunChart"], "auth_required": True},
-            {"name": "Inference API", "path": "/api-docs", "description": "API documentation for model inference", "navigates_to": [], "api_calls": ["GET /api/docs"], "components": ["SwaggerUI", "CodeSnippet"], "auth_required": False},
-            {"name": "Monitoring", "path": "/monitoring", "description": "Real-time model performance monitoring", "navigates_to": [], "api_calls": ["GET /api/metrics/live", "GET /api/alerts"], "components": ["LiveChart", "AlertPanel", "DriftDetector"], "auth_required": True},
+            {"name": "Model Dashboard",  "path": "/",             "description": "Overview of models and performance metrics", "navigates_to": ["/models", "/experiments"], "api_calls": ["GET /api/models", "GET /api/metrics"], "components": ["ModelCard", "MetricChart", "Navbar"], "auth_required": False},
+            {"name": "Model Registry",   "path": "/models",       "description": "Browse, version, and manage ML models",      "navigates_to": ["/models/:id"],             "api_calls": ["GET /api/models", "POST /api/models"], "components": ["ModelList", "ModelCard", "VersionBadge"], "auth_required": True},
+            {"name": "Model Detail",     "path": "/models/:id",   "description": "Model details, metrics, and inference",      "navigates_to": ["/experiments"],            "api_calls": ["GET /api/models/:id", "POST /api/predict"], "components": ["ModelViewer", "MetricChart", "PredictionForm"], "auth_required": True},
+            {"name": "Experiments",      "path": "/experiments",  "description": "Track and compare training runs",             "navigates_to": ["/experiments/:id"],        "api_calls": ["GET /api/experiments", "POST /api/experiments"], "components": ["ExperimentList", "RunChart", "CompareTable"], "auth_required": True},
+            {"name": "Live Monitoring",  "path": "/monitoring",   "description": "Real-time model performance and drift alerts","navigates_to": [],                          "api_calls": ["GET /api/metrics/live", "GET /api/alerts"], "components": ["LiveChart", "AlertPanel", "DriftDetector"], "auth_required": True},
+            {"name": "API Playground",   "path": "/playground",   "description": "Test model inference interactively",          "navigates_to": [],                          "api_calls": ["POST /api/predict"],                          "components": ["InputBuilder", "ResponseViewer", "CodeSnippet"], "auth_required": False},
         ]
         components = [
-            {"name": "ModelCard", "description": "Displays model summary with key metrics", "used_by": ["Model Dashboard", "Model Registry"]},
-            {"name": "MetricChart", "description": "Renders accuracy, loss, and performance charts", "used_by": ["Model Dashboard", "Model Detail", "Monitoring"]},
-            {"name": "ExperimentList", "description": "Lists all training runs with comparison", "used_by": ["Experiments"]},
-            {"name": "PredictionForm", "description": "Input form for model inference requests", "used_by": ["Model Detail"]},
-            {"name": "LiveChart", "description": "Real-time streaming chart for live metrics", "used_by": ["Monitoring"]},
-            {"name": "Navbar", "description": "Top navigation with auth state", "used_by": ["Model Dashboard", "Model Registry", "Monitoring"]},
-            {"name": "AlertPanel", "description": "Shows drift and performance alerts", "used_by": ["Monitoring"]},
+            {"name": "ModelCard",       "description": "Model summary with accuracy, latency, version",        "used_by": ["Model Dashboard", "Model Registry"], "props": ["model", "onSelect"]},
+            {"name": "MetricChart",     "description": "Time-series chart for accuracy, loss, F1",             "used_by": ["Model Dashboard", "Model Detail", "Live Monitoring"], "props": ["data", "metric", "timeRange"]},
+            {"name": "PredictionForm",  "description": "Input builder for model inference requests",           "used_by": ["Model Detail", "API Playground"], "props": ["schema", "onPredict"]},
+            {"name": "ExperimentList",  "description": "Sortable list of training runs with metrics",          "used_by": ["Experiments"], "props": ["experiments", "onCompare"]},
+            {"name": "LiveChart",       "description": "WebSocket-powered real-time metrics visualization",    "used_by": ["Live Monitoring"], "props": ["modelId", "metric"]},
+            {"name": "AlertPanel",      "description": "Drift and performance degradation alerts",             "used_by": ["Live Monitoring", "Model Dashboard"], "props": ["alerts", "onAcknowledge"]},
+            {"name": "Navbar",          "description": "Navigation with model status indicator",               "used_by": ["Model Dashboard", "Model Registry", "Experiments", "Live Monitoring"], "props": ["user", "activeModel"]},
         ]
         routes = [
-            {"method": "GET",  "path": "/api/models",         "description": "List all registered models",        "auth_required": True,  "input": "query params: page, limit", "output": "array of model objects"},
-            {"method": "POST", "path": "/api/models",         "description": "Register a new model",              "auth_required": True,  "input": "model metadata and artifact path", "output": "created model object"},
-            {"method": "GET",  "path": "/api/models/:id",     "description": "Get model details and metrics",     "auth_required": True,  "input": "model id", "output": "model with metrics"},
-            {"method": "POST", "path": "/api/predict",        "description": "Run inference on model",            "auth_required": True,  "input": "input features JSON", "output": "prediction result"},
-            {"method": "GET",  "path": "/api/experiments",    "description": "List training experiments",         "auth_required": True,  "input": "query params", "output": "experiment list"},
-            {"method": "POST", "path": "/api/experiments",    "description": "Start a new training run",          "auth_required": True,  "input": "training config", "output": "experiment object"},
-            {"method": "GET",  "path": "/api/metrics/live",   "description": "Stream live metrics via SSE",       "auth_required": True,  "input": "model id", "output": "SSE stream of metrics"},
-            {"method": "GET",  "path": "/api/alerts",         "description": "Get performance drift alerts",      "auth_required": True,  "input": "time range", "output": "alert list"},
-            {"method": "POST", "path": "/api/auth/login",     "description": "User authentication",               "auth_required": False, "input": "email, password", "output": "JWT token"},
+            {"method": "GET",  "path": "/api/models",           "description": "List all registered models with metadata",  "auth_required": True,  "input": "?page&limit&status", "output": "paginated model list", "used_by_pages": ["Model Registry"]},
+            {"method": "POST", "path": "/api/models",           "description": "Register a new model version",              "auth_required": True,  "input": "model metadata + artifact path", "output": "created model", "used_by_pages": ["Model Registry"]},
+            {"method": "GET",  "path": "/api/models/:id",       "description": "Get model with full metrics history",       "auth_required": True,  "input": "model id", "output": "model + metrics", "used_by_pages": ["Model Detail"]},
+            {"method": "POST", "path": "/api/predict",          "description": "Run inference — returns prediction + confidence", "auth_required": True,  "input": "feature JSON", "output": "prediction result", "used_by_pages": ["Model Detail", "API Playground"]},
+            {"method": "GET",  "path": "/api/experiments",      "description": "List training experiments with metrics",    "auth_required": True,  "input": "?model_id&status", "output": "experiment list", "used_by_pages": ["Experiments"]},
+            {"method": "POST", "path": "/api/experiments",      "description": "Create and start a training run",           "auth_required": True,  "input": "training config JSON", "output": "experiment + run_id", "used_by_pages": ["Experiments"]},
+            {"method": "GET",  "path": "/api/metrics/live",     "description": "Server-sent events stream of live metrics", "auth_required": True,  "input": "?model_id", "output": "SSE stream", "used_by_pages": ["Live Monitoring"]},
+            {"method": "GET",  "path": "/api/alerts",           "description": "Get drift and performance alerts",          "auth_required": True,  "input": "?model_id&severity", "output": "alert list", "used_by_pages": ["Live Monitoring"]},
+            {"method": "POST", "path": "/api/auth/login",       "description": "Authenticate user",                        "auth_required": False, "input": "email, password", "output": "JWT token", "used_by_pages": []},
+        ]
+        models = [
+            {"name": "Model",      "table": "models",       "key_fields": ["id: uuid", "name: str", "version: str", "artifact_path: str", "accuracy: float"], "relationships": ["has many Experiments", "has many Predictions"]},
+            {"name": "Experiment", "table": "experiments",  "key_fields": ["id: uuid", "model_id: uuid", "config: json", "status: str", "started_at: datetime"], "relationships": ["belongs to Model", "has many Runs"]},
+            {"name": "Prediction", "table": "predictions",  "key_fields": ["id: uuid", "model_id: uuid", "input: json", "output: json", "latency_ms: int"], "relationships": ["belongs to Model"]},
+            {"name": "Alert",      "table": "alerts",       "key_fields": ["id: uuid", "model_id: uuid", "type: str", "severity: str", "acknowledged: bool"], "relationships": ["belongs to Model"]},
         ]
 
     elif is_data:
         pages = [
-            {"name": "Pipeline Dashboard", "path": "/", "description": f"Overview of {project_name} pipelines and status", "navigates_to": ["/pipelines", "/data"], "api_calls": ["GET /api/pipelines", "GET /api/health"], "components": ["PipelineCard", "StatusBadge", "Navbar"], "auth_required": False},
-            {"name": "Pipeline Builder", "path": "/pipelines/new", "description": "Visual pipeline configuration", "navigates_to": ["/pipelines"], "api_calls": ["POST /api/pipelines", "GET /api/sources"], "components": ["PipelineBuilder", "SourceSelector", "TransformConfig"], "auth_required": True},
-            {"name": "Pipeline Detail", "path": "/pipelines/:id", "description": "Monitor pipeline runs and logs", "navigates_to": ["/pipelines/:id/runs"], "api_calls": ["GET /api/pipelines/:id", "GET /api/runs"], "components": ["RunHistory", "LogViewer", "StatsChart"], "auth_required": True},
-            {"name": "Data Explorer", "path": "/data", "description": "Browse and query processed data", "navigates_to": [], "api_calls": ["GET /api/data", "POST /api/query"], "components": ["DataTable", "QueryEditor", "FilterPanel"], "auth_required": True},
-            {"name": "Monitoring", "path": "/monitoring", "description": "Data quality and pipeline health monitoring", "navigates_to": [], "api_calls": ["GET /api/quality", "GET /api/alerts"], "components": ["QualityChart", "AlertPanel", "DriftIndicator"], "auth_required": True},
-            {"name": "Settings", "path": "/settings", "description": "Configure connections and credentials", "navigates_to": [], "api_calls": ["GET /api/settings", "PUT /api/settings"], "components": ["ConnectionForm", "CredentialManager"], "auth_required": True},
+            {"name": "Pipeline Dashboard", "path": "/",                   "description": "Overview of all pipelines and run status",       "navigates_to": ["/pipelines", "/data"],  "api_calls": ["GET /api/pipelines", "GET /api/health"], "components": ["PipelineCard", "StatusBadge", "Navbar"], "auth_required": False},
+            {"name": "Pipeline Builder",   "path": "/pipelines/new",      "description": "Visual pipeline configuration and scheduling",    "navigates_to": ["/pipelines"],           "api_calls": ["POST /api/pipelines", "GET /api/sources"], "components": ["PipelineBuilder", "SourceSelector", "TransformConfig"], "auth_required": True},
+            {"name": "Pipeline Detail",    "path": "/pipelines/:id",      "description": "Monitor runs, logs, and lineage for a pipeline",  "navigates_to": ["/pipelines/:id/runs"],  "api_calls": ["GET /api/pipelines/:id", "GET /api/runs"], "components": ["RunHistory", "LogViewer", "LineageGraph"], "auth_required": True},
+            {"name": "Data Explorer",      "path": "/data",               "description": "Browse, query, and preview processed datasets",   "navigates_to": [],                       "api_calls": ["GET /api/data", "POST /api/query"], "components": ["DataTable", "QueryEditor", "FilterPanel"], "auth_required": True},
+            {"name": "Quality Monitor",    "path": "/quality",            "description": "Data quality metrics, anomaly detection, alerts", "navigates_to": [],                       "api_calls": ["GET /api/quality", "GET /api/anomalies"], "components": ["QualityChart", "AnomalyTable", "AlertPanel"], "auth_required": True},
+            {"name": "Settings",           "path": "/settings",           "description": "Configure data sources, credentials, schedules",  "navigates_to": [],                       "api_calls": ["GET /api/settings", "PUT /api/settings"], "components": ["ConnectionForm", "ScheduleConfig"], "auth_required": True},
         ]
         components = [
-            {"name": "PipelineCard", "description": "Shows pipeline status and last run time", "used_by": ["Pipeline Dashboard"]},
-            {"name": "PipelineBuilder", "description": "Drag-and-drop pipeline configuration UI", "used_by": ["Pipeline Builder"]},
-            {"name": "DataTable", "description": "Paginated data table with sorting and filtering", "used_by": ["Data Explorer"]},
-            {"name": "QualityChart", "description": "Data quality metrics over time", "used_by": ["Monitoring"]},
-            {"name": "LogViewer", "description": "Real-time log streaming for pipeline runs", "used_by": ["Pipeline Detail"]},
-            {"name": "AlertPanel", "description": "Shows data quality and pipeline alerts", "used_by": ["Monitoring", "Pipeline Dashboard"]},
-            {"name": "Navbar", "description": "Top navigation with pipeline status indicator", "used_by": ["Pipeline Dashboard", "Data Explorer", "Monitoring"]},
+            {"name": "PipelineCard",    "description": "Pipeline summary with last run status and schedule",       "used_by": ["Pipeline Dashboard"], "props": ["pipeline", "onEdit", "onRun"]},
+            {"name": "PipelineBuilder", "description": "Drag-and-drop visual pipeline editor",                     "used_by": ["Pipeline Builder"], "props": ["sources", "transforms", "onSave"]},
+            {"name": "DataTable",       "description": "Paginated virtualized table with column sorting/filtering", "used_by": ["Data Explorer"], "props": ["data", "columns", "onFilter"]},
+            {"name": "QualityChart",    "description": "Time-series quality score with threshold lines",            "used_by": ["Quality Monitor"], "props": ["scores", "threshold", "metric"]},
+            {"name": "LogViewer",       "description": "Real-time streaming log display for pipeline runs",         "used_by": ["Pipeline Detail"], "props": ["runId", "autoScroll"]},
+            {"name": "AlertPanel",      "description": "Data quality and pipeline failure alerts",                  "used_by": ["Quality Monitor", "Pipeline Dashboard"], "props": ["alerts", "onAcknowledge"]},
+            {"name": "Navbar",          "description": "Navigation with pipeline health indicator",                 "used_by": ["Pipeline Dashboard", "Data Explorer", "Quality Monitor"], "props": ["user", "pipelineHealth"]},
         ]
         routes = [
-            {"method": "GET",  "path": "/api/pipelines",      "description": "List all pipelines",               "auth_required": True,  "input": "query params", "output": "pipeline list"},
-            {"method": "POST", "path": "/api/pipelines",      "description": "Create new pipeline",              "auth_required": True,  "input": "pipeline config JSON", "output": "created pipeline"},
-            {"method": "GET",  "path": "/api/pipelines/:id",  "description": "Get pipeline details and runs",    "auth_required": True,  "input": "pipeline id", "output": "pipeline with runs"},
-            {"method": "POST", "path": "/api/pipelines/:id/run", "description": "Trigger pipeline run",          "auth_required": True,  "input": "run config", "output": "run object"},
-            {"method": "GET",  "path": "/api/data",           "description": "Browse processed data",            "auth_required": True,  "input": "table, page, filters", "output": "paginated data"},
-            {"method": "POST", "path": "/api/query",          "description": "Execute custom data query",        "auth_required": True,  "input": "SQL or filter config", "output": "query results"},
-            {"method": "GET",  "path": "/api/quality",        "description": "Get data quality metrics",         "auth_required": True,  "input": "time range", "output": "quality metrics"},
-            {"method": "GET",  "path": "/api/health",         "description": "Pipeline health status",           "auth_required": False, "input": "none", "output": "health status"},
-            {"method": "POST", "path": "/api/auth/login",     "description": "User authentication",              "auth_required": False, "input": "email, password", "output": "JWT token"},
+            {"method": "GET",  "path": "/api/pipelines",           "description": "List all pipelines with run status",         "auth_required": True,  "input": "?status&page", "output": "pipeline list", "used_by_pages": ["Pipeline Dashboard"]},
+            {"method": "POST", "path": "/api/pipelines",           "description": "Create pipeline from config",                "auth_required": True,  "input": "pipeline config JSON", "output": "created pipeline", "used_by_pages": ["Pipeline Builder"]},
+            {"method": "GET",  "path": "/api/pipelines/:id",       "description": "Get pipeline with runs and lineage",         "auth_required": True,  "input": "pipeline id", "output": "pipeline + runs", "used_by_pages": ["Pipeline Detail"]},
+            {"method": "POST", "path": "/api/pipelines/:id/run",   "description": "Trigger immediate pipeline execution",       "auth_required": True,  "input": "run config", "output": "run object with id", "used_by_pages": ["Pipeline Detail", "Pipeline Dashboard"]},
+            {"method": "GET",  "path": "/api/data",                "description": "Browse paginated processed dataset",         "auth_required": True,  "input": "?table&page&filters", "output": "paginated rows", "used_by_pages": ["Data Explorer"]},
+            {"method": "POST", "path": "/api/query",               "description": "Execute ad-hoc SQL or filter query",         "auth_required": True,  "input": "query string or filter JSON", "output": "query results", "used_by_pages": ["Data Explorer"]},
+            {"method": "GET",  "path": "/api/quality",             "description": "Get quality scores by dataset and time",     "auth_required": True,  "input": "?dataset&from&to", "output": "quality metrics", "used_by_pages": ["Quality Monitor"]},
+            {"method": "GET",  "path": "/api/anomalies",           "description": "Get detected data anomalies",                "auth_required": True,  "input": "?severity&dataset", "output": "anomaly list", "used_by_pages": ["Quality Monitor"]},
+            {"method": "GET",  "path": "/api/health",              "description": "Overall pipeline health status",             "auth_required": False, "input": "none", "output": "health object", "used_by_pages": ["Pipeline Dashboard"]},
+        ]
+        models = [
+            {"name": "Pipeline",   "table": "pipelines",   "key_fields": ["id: uuid", "name: str", "config: json", "schedule: str", "status: str"], "relationships": ["has many Runs", "has many Sources"]},
+            {"name": "Run",        "table": "runs",        "key_fields": ["id: uuid", "pipeline_id: uuid", "started_at: datetime", "status: str", "rows_processed: int"], "relationships": ["belongs to Pipeline", "has many Logs"]},
+            {"name": "DataSource", "table": "data_sources","key_fields": ["id: uuid", "type: str", "connection_string: str", "schema: json"], "relationships": ["belongs to many Pipelines"]},
+            {"name": "QualityCheck","table": "quality_checks","key_fields": ["id: uuid", "dataset: str", "score: float", "checked_at: datetime", "issues: json"], "relationships": []},
         ]
 
     else:
-        # General web/API project
-        # Extract meaningful name from idea for pages
-        domain = project_name.replace("-", " ").replace("_", " ").title()
+        domain = " ".join(idea.split()[:3]).title()
         pages = [
-            {"name": f"{domain} Home", "path": "/", "description": f"Landing page for {project_name}", "navigates_to": ["/login", "/signup", "/features"], "api_calls": [], "components": ["Navbar", "HeroSection", "FeatureGrid", "Footer"], "auth_required": False},
-            {"name": "Sign Up", "path": "/signup", "description": "New user registration", "navigates_to": ["/dashboard"], "api_calls": ["POST /api/auth/register"], "components": ["AuthForm", "ValidationError"], "auth_required": False},
-            {"name": "Login", "path": "/login", "description": "User authentication", "navigates_to": ["/dashboard"], "api_calls": ["POST /api/auth/login"], "components": ["AuthForm", "SocialAuth"], "auth_required": False},
-            {"name": "Dashboard", "path": "/dashboard", "description": f"Main {domain} user dashboard", "navigates_to": ["/profile", "/settings"], "api_calls": ["GET /api/user/me", "GET /api/dashboard"], "components": ["Navbar", "StatCard", "ActivityFeed", "AuthGuard"], "auth_required": True},
-            {"name": "Profile", "path": "/profile", "description": "User profile management", "navigates_to": ["/settings"], "api_calls": ["GET /api/user/me", "PUT /api/user/me"], "components": ["ProfileForm", "AvatarUpload", "AuthGuard"], "auth_required": True},
-            {"name": "Settings", "path": "/settings", "description": "Account and application settings", "navigates_to": [], "api_calls": ["GET /api/settings", "PUT /api/settings"], "components": ["SettingsPanel", "DangerZone", "AuthGuard"], "auth_required": True},
+            {"name": f"{domain} Home",    "path": "/",           "description": f"Landing page with value proposition for {domain}", "navigates_to": ["/login", "/signup"],  "api_calls": [],                                       "components": ["Navbar", "HeroSection", "FeatureGrid", "Footer"], "auth_required": False},
+            {"name": "Sign Up",           "path": "/signup",     "description": "New user registration with validation",              "navigates_to": ["/dashboard"],         "api_calls": ["POST /api/auth/register"],               "components": ["AuthForm", "PasswordStrength"], "auth_required": False},
+            {"name": "Login",             "path": "/login",      "description": "Returning user authentication",                      "navigates_to": ["/dashboard"],         "api_calls": ["POST /api/auth/login"],                 "components": ["AuthForm", "SocialLogin"], "auth_required": False},
+            {"name": "Dashboard",         "path": "/dashboard",  "description": f"Main {domain} workspace and activity overview",     "navigates_to": ["/profile"],           "api_calls": ["GET /api/user/me", "GET /api/dashboard"],"components": ["Navbar", "StatCard", "ActivityFeed", "AuthGuard"], "auth_required": True},
+            {"name": "Profile",           "path": "/profile",    "description": "User profile and preferences management",            "navigates_to": ["/settings"],          "api_calls": ["GET /api/user/me", "PUT /api/user/me"],  "components": ["ProfileForm", "AvatarUpload", "AuthGuard"], "auth_required": True},
+            {"name": "Settings",          "path": "/settings",   "description": "Account settings and notification preferences",      "navigates_to": [],                     "api_calls": ["GET /api/settings", "PUT /api/settings"],"components": ["SettingsTabs", "DangerZone", "AuthGuard"], "auth_required": True},
         ]
         components = [
-            {"name": "Navbar", "description": "Responsive navigation with auth state", "used_by": [f"{domain} Home", "Dashboard", "Profile"]},
-            {"name": "AuthForm", "description": "Reusable login and signup form with validation", "used_by": ["Sign Up", "Login"]},
-            {"name": "AuthGuard", "description": "Protects routes requiring authentication", "used_by": ["Dashboard", "Profile", "Settings"]},
-            {"name": "StatCard", "description": "Displays key metrics and statistics", "used_by": ["Dashboard"]},
-            {"name": "ActivityFeed", "description": "Recent activity timeline", "used_by": ["Dashboard"]},
-            {"name": "Footer", "description": "Site footer with links", "used_by": [f"{domain} Home"]},
-            {"name": "Toast", "description": "Global notification system", "used_by": ["Dashboard", "Profile", "Settings"]},
+            {"name": "Navbar",       "description": "Responsive navigation with auth-aware links",         "used_by": [f"{domain} Home", "Dashboard", "Profile"], "props": ["user", "isAuthenticated"]},
+            {"name": "AuthForm",     "description": "Shared login/signup form with client validation",     "used_by": ["Sign Up", "Login"], "props": ["mode", "onSubmit", "isLoading"]},
+            {"name": "AuthGuard",    "description": "HOC that redirects unauthenticated users to /login",  "used_by": ["Dashboard", "Profile", "Settings"], "props": ["children"]},
+            {"name": "StatCard",     "description": "KPI metric card with trend indicator",                "used_by": ["Dashboard"], "props": ["label", "value", "trend", "icon"]},
+            {"name": "ActivityFeed", "description": "Chronological list of recent user actions",           "used_by": ["Dashboard"], "props": ["activities", "limit"]},
+            {"name": "Footer",       "description": "Site footer with legal links",                        "used_by": [f"{domain} Home"], "props": []},
+            {"name": "Toast",        "description": "Global notification system for success/error states", "used_by": ["Dashboard", "Profile", "Settings", "Sign Up"], "props": ["message", "type", "duration"]},
         ]
         routes = [
-            {"method": "POST", "path": "/api/auth/register", "description": "Register new user",            "auth_required": False, "input": "name, email, password", "output": "user object + token"},
-            {"method": "POST", "path": "/api/auth/login",    "description": "Authenticate user",            "auth_required": False, "input": "email, password", "output": "JWT token"},
-            {"method": "POST", "path": "/api/auth/logout",   "description": "Invalidate user session",      "auth_required": True,  "input": "none", "output": "success message"},
-            {"method": "GET",  "path": "/api/user/me",       "description": "Get current user profile",     "auth_required": True,  "input": "JWT header", "output": "user profile object"},
-            {"method": "PUT",  "path": "/api/user/me",       "description": "Update user profile",          "auth_required": True,  "input": "profile fields", "output": "updated user object"},
-            {"method": "GET",  "path": "/api/dashboard",     "description": "Get dashboard data",           "auth_required": True,  "input": "JWT header", "output": "dashboard stats and feed"},
-            {"method": "GET",  "path": "/api/settings",      "description": "Get user settings",            "auth_required": True,  "input": "JWT header", "output": "settings object"},
-            {"method": "PUT",  "path": "/api/settings",      "description": "Update user settings",         "auth_required": True,  "input": "settings fields", "output": "updated settings"},
-            {"method": "GET",  "path": "/api/health",        "description": "API health check",             "auth_required": False, "input": "none", "output": "status ok"},
+            {"method": "POST", "path": "/api/auth/register", "description": "Register new user, send verification email",  "auth_required": False, "input": "name, email, password",  "output": "user + JWT token", "used_by_pages": ["Sign Up"]},
+            {"method": "POST", "path": "/api/auth/login",    "description": "Authenticate and return JWT",                 "auth_required": False, "input": "email, password",        "output": "JWT token",        "used_by_pages": ["Login"]},
+            {"method": "POST", "path": "/api/auth/logout",   "description": "Invalidate refresh token",                   "auth_required": True,  "input": "refresh_token",          "output": "success",          "used_by_pages": []},
+            {"method": "GET",  "path": "/api/auth/me",       "description": "Get current authenticated user",             "auth_required": True,  "input": "JWT header",             "output": "user object",      "used_by_pages": ["Dashboard", "Profile"]},
+            {"method": "GET",  "path": "/api/user/me",       "description": "Get user profile with preferences",          "auth_required": True,  "input": "JWT header",             "output": "profile object",   "used_by_pages": ["Profile"]},
+            {"method": "PUT",  "path": "/api/user/me",       "description": "Update user profile fields",                 "auth_required": True,  "input": "profile fields JSON",    "output": "updated profile",  "used_by_pages": ["Profile"]},
+            {"method": "GET",  "path": "/api/dashboard",     "description": "Get dashboard stats and activity feed",      "auth_required": True,  "input": "JWT header",             "output": "stats + feed",     "used_by_pages": ["Dashboard"]},
+            {"method": "GET",  "path": "/api/settings",      "description": "Get user settings and preferences",          "auth_required": True,  "input": "JWT header",             "output": "settings object",  "used_by_pages": ["Settings"]},
+            {"method": "PUT",  "path": "/api/settings",      "description": "Update settings",                            "auth_required": True,  "input": "settings JSON",          "output": "updated settings", "used_by_pages": ["Settings"]},
+        ]
+        models = [
+            {"name": "User",     "table": "users",    "key_fields": ["id: uuid", "email: str", "name: str", "avatar_url: str", "created_at: datetime"], "relationships": ["has one Profile", "has many Activities"]},
+            {"name": "Profile",  "table": "profiles", "key_fields": ["id: uuid", "user_id: uuid", "bio: str", "preferences: json"], "relationships": ["belongs to User"]},
+            {"name": "Activity", "table": "activities","key_fields": ["id: uuid", "user_id: uuid", "type: str", "metadata: json", "created_at: datetime"], "relationships": ["belongs to User"]},
+            {"name": "Settings", "table": "settings", "key_fields": ["id: uuid", "user_id: uuid", "notifications: json", "theme: str"], "relationships": ["belongs to User"]},
         ]
 
     return {
         "pages": pages,
         "shared_components": components,
         "api_routes": routes,
+        "data_models": models,
         "navigation_structure": {
-            "public_routes":  [p["path"] for p in pages if not p["auth_required"]],
-            "protected_routes": [p["path"] for p in pages if p["auth_required"]],
+            "public_routes":               [p["path"] for p in pages if not p["auth_required"]],
+            "protected_routes":            [p["path"] for p in pages if p["auth_required"]],
             "default_redirect_after_login": "/dashboard",
+            "nav_groups": [
+                {"label": "Main",    "routes": [p["path"] for p in pages[:3]]},
+                {"label": "Account", "routes": [p["path"] for p in pages[3:]]},
+            ],
         },
         "tech_decisions": {
-            "frontend":   tech_stack[0] if tech_stack else "React / Next.js",
-            "backend":    next((t for t in tech_stack if "api" in t.lower() or "fast" in t.lower() or "django" in t.lower()), "FastAPI"),
-            "database":   next((t for t in tech_stack if "sql" in t.lower() or "postgres" in t.lower() or "mongo" in t.lower()), "PostgreSQL"),
-            "auth":       "JWT with refresh tokens",
-            "deployment": "Docker + cloud provider",
+            "frontend":    tech_stack[0] if tech_stack else "Next.js — SSR + file-based routing",
+            "backend":     next((t for t in tech_stack if any(w in t.lower() for w in ["fast", "django", "express", "node"])), "FastAPI — async, type-safe, auto-docs"),
+            "database":    next((t for t in tech_stack if any(w in t.lower() for w in ["postgres", "mysql", "mongo", "redis"])), "PostgreSQL — ACID, row-level security"),
+            "auth":        "JWT with refresh tokens — 15min access, 7d refresh",
+            "deployment":  "Docker + GitHub Actions CI/CD",
+            "key_libraries": ["Pydantic — request validation", "SQLAlchemy — ORM", "Tailwind — utility CSS"],
         },
     }
