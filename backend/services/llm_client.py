@@ -44,7 +44,7 @@ LLM_EMBED  = os.getenv("LLM_EMBED_MODEL",  None)                  # None = local
 
 # Timeouts
 FAST_TIMEOUT   = float(os.getenv("LLM_FAST_TIMEOUT",   "30"))
-STRONG_TIMEOUT = float(os.getenv("LLM_STRONG_TIMEOUT", "60"))
+STRONG_TIMEOUT = float(os.getenv("LLM_STRONG_TIMEOUT", "120"))
 
 # Silence litellm's verbose logging (it's noisy)
 litellm.set_verbose = False

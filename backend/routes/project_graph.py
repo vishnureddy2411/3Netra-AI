@@ -20,6 +20,7 @@ router = APIRouter()
 
 class ProjectGraphRequest(BaseModel):
     project_id: str
+    db_project_id: str | None = None
     idea: str
 
 
@@ -105,9 +106,9 @@ async def project_graph(request: Request, body: ProjectGraphRequest, auth=Depend
                     .eq("project_id", body.project_id)\
                     .eq("artifact_type", "project_graph")\
                     .execute()
-
+                save_id = body.db_project_id or body.project_id
                 artifact_data = {
-                    "project_id":    body.project_id,
+                    "project_id":    save_id,
                     "user_id":       user_id,
                     "artifact_type": "project_graph",
                     "title":         "Project Architecture Graph",

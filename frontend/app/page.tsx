@@ -223,7 +223,7 @@ export default function Home() {
 
   // ── Phase 2 ───────────────────────────────────
 
-  const runPhase2 = async (projectId: string, chosenIdea: string) => {
+  const runPhase2 = async (mcpId: string, dbId: string, chosenIdea: string) => {
     setIsRunning(true)
     setActiveStage('architecture')
     try {
@@ -231,7 +231,7 @@ export default function Home() {
         type: 'thinking', stage: 'Architecture',
         message: 'Generating system architecture, database schema, API contracts, auth flow, deployment plan...',
       })
-      const r3 = await runDiagrams(projectId, chosenIdea)
+      const r3 = await runDiagrams(mcpId, dbId, chosenIdea)
       updateMsg(t3, { type: 'diagrams', diagrams: r3.result.diagrams })
 
       setActiveStage('build')
@@ -239,7 +239,7 @@ export default function Home() {
         type: 'thinking', stage: 'Project Graph',
         message: 'Pre-wiring all pages, components, and API routes...',
       })
-      const r4 = await runProjectGraph(projectId, chosenIdea)
+      const r4 = await runProjectGraph(mcpId, dbId, chosenIdea)
       updateMsg(t4, {
         type:    'graph',
         summary: r4.result.summary,
@@ -247,7 +247,7 @@ export default function Home() {
         graph:   r4.result.graph,
       })
 
-      addMsg({ type: 'complete', projectId })
+      addMsg({ type: 'complete', projectId: dbId })
       setShowNewSession(true)
       setSidebarRefresh(prev => prev + 1)
     } catch (err) {
@@ -285,12 +285,14 @@ export default function Home() {
       setActiveResearchSummary(researchSummary)
       setActiveVerdictSummary(verdictSummary)
 
+      setActiveStage('deep_analysis')
       updateMsg(thinkId, {
-        type: 'thinking', stage: 'Curating Ideas',
-        message: 'Generating validated project ideas based on expert analysis...',
+        type: 'thinking', stage: 'Deep Analysis',
+        message: 'Running council-level analysis across Beginner, Intermediate, and Expert levels...',
       })
 
       const r3 = await runIdeas(context || intake.role, intake, researchSummary, verdictSummary)
+
       updateMsg(thinkId, { type: 'ideas', ideas: r3.ideas, purpose: intake.purpose, role: intake.role })
 
     } catch (err) {
@@ -446,7 +448,7 @@ export default function Home() {
       }
     }
 
-    runPhase2(projectId, project.fullIdea)
+    runPhase2(activeProjectId || projectId, savedProject?.id || projectId, project.fullIdea)
   }
 
   const handleStartDiscussion = () => {
@@ -478,17 +480,28 @@ export default function Home() {
     }
   }
 
-  const handleDiscussionProceed = () => {
-    if (!pendingProject) return
-    const project   = pendingProject
-    const projectId = (project.projectId && project.projectId !== '')
-      ? project.projectId : (activeProjectId || '')
-    setPendingProject(null)
-    setDiscussionMsgId(null)
-    setSelectionMade(true)
-    addMsg({ type: 'chosen', choice: `→ Building: ${project.title}` })
-    runPhase2(projectId, project.fullIdea)
+  const handleDiscussionProceed = async () => {
+  if (!pendingProject || !intakeData) return
+  const project = pendingProject
+  const mcpId = (project.projectId && project.projectId !== '')
+    ? project.projectId : (activeProjectId || '')
+
+  setPendingProject(null)
+  setDiscussionMsgId(null)
+  setSelectionMade(true)
+  addMsg({ type: 'chosen', choice: `→ Building: ${project.title}` })
+
+  const savedProject = await createProject(project, intakeData.role, intakeData.purpose)
+  if (savedProject) {
+    setDbProjectId(savedProject.id)
+    setSidebarRefresh(prev => prev + 1)
+    const session = await createSession(savedProject.id, 6, 'planning', 'Planning Session 1')
+    if (session) setActiveSessionId(session.id)
+    runPhase2(mcpId, savedProject.id, project.fullIdea)
+  } else {
+    runPhase2(mcpId, mcpId, project.fullIdea)
   }
+}
 
   // ── New session ───────────────────────────────
 

@@ -3,14 +3,29 @@
 // ─────────────────────────────────────────────
 
 import { API } from './constants'
+import { supabase } from './supabase'
 import type { IntakeData, Verdict, SelectedProject, DiscussionTurn } from './types'
+
+// ── Auth helper ───────────────────────────────
+// Grabs the current Supabase session token.
+// Always call this before any authenticated request.
+
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const { data: { session } } = await supabase.auth.getSession()
+  const base: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (session?.access_token) {
+    base['Authorization'] = `Bearer ${session.access_token}`
+  }
+  return base
+}
 
 // ── Generic helpers ───────────────────────────
 
 export async function apiPost(endpoint: string, body: object) {
+  const headers = await getAuthHeaders()
   const res = await fetch(`${API}/${endpoint}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(body),
   })
   if (!res.ok) {
@@ -21,7 +36,8 @@ export async function apiPost(endpoint: string, body: object) {
 }
 
 export async function apiGet(endpoint: string) {
-  const res = await fetch(`${API}/${endpoint}`)
+  const headers = await getAuthHeaders()
+  const res = await fetch(`${API}/${endpoint}`, { headers })
   if (!res.ok) throw new Error(`${endpoint} failed`)
   return res.json()
 }
@@ -56,6 +72,7 @@ export async function runCouncil(
     },
   })
 }
+
 // ── Deep Analysis ─────────────────────────────
 
 export async function runDeepAnalysis(
@@ -148,14 +165,14 @@ export async function runDiscussion(
 
 // ── Diagrams ──────────────────────────────────
 
-export async function runDiagrams(projectId: string, idea: string) {
-  return apiPost('diagrams', { project_id: projectId, idea })
+export async function runDiagrams(mcpProjectId: string, dbProjectId: string, idea: string) {
+  return apiPost('diagrams', { project_id: mcpProjectId, db_project_id: dbProjectId, idea })
 }
 
 // ── Project graph ─────────────────────────────
 
-export async function runProjectGraph(projectId: string, idea: string) {
-  return apiPost('project-graph', { project_id: projectId, idea })
+export async function runProjectGraph(mcpProjectId: string, dbProjectId: string, idea: string) {
+  return apiPost('project-graph', { project_id: mcpProjectId, db_project_id: dbProjectId, idea })
 }
 
 // ── Session ───────────────────────────────────
@@ -180,7 +197,6 @@ export function buildEnrichedIdea(idea: string, intake: IntakeData): string {
 }
 
 // ── Build selected project object ─────────────
-// Converts different project formats into SelectedProject
 
 export function buildSelectedProject(
   projectId: string,
