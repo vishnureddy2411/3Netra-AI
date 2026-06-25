@@ -6,28 +6,31 @@ export const API = 'http://localhost:8000/api'
 
 export const PURPOSE_OPTIONS = [
   {
-    id: 'portfolio',
-    label: 'Portfolio',
-    icon: '🗂️',
-    desc: 'Land a job — project goes on resume and GitHub',
-    research_focus: 'what impresses hiring managers, ATS keywords, role-specific projects',
-    council_lens: 'hiring signals, interview talking points, resume impact, differentiation from tutorials',
-  },
-  {
-    id: 'startup',
-    label: 'Startup',
-    icon: '🚀',
-    desc: 'Build a real product with users and revenue',
-    research_focus: 'market size, competitors, monetization models, user acquisition',
-    council_lens: 'TAM, revenue model, competitive moat, solo build feasibility',
+    id: 'job_hunt',
+    label: 'Get Hired',
+    icon: '🎯',
+    desc: 'Build a portfolio project that lands you a job',
+    output_preview: 'Resume bullets · Hiring manager analysis · Interview talking points',
+    research_focus: 'what impresses hiring managers, ATS keywords, role-specific projects, GitHub portfolio best practices, recruiter screening signals',
+    council_lens: 'hiring signal strength, interview talking points, resume impact, differentiation from tutorial projects, recruiter first impression',
   },
   {
     id: 'learning',
-    label: 'Learning',
+    label: 'Learn & Grow',
     icon: '📚',
-    desc: 'Develop a specific skill or understand a technology',
-    research_focus: 'technology learning curve, common pitfalls, best resources',
-    council_lens: 'complexity curve, skill building path, prerequisites, time investment',
+    desc: 'Master a technology or skill through a hands-on project',
+    output_preview: 'Skill progression · Complexity curve · Learning roadmap',
+    research_focus: 'technology learning curve, common pitfalls, best learning resources, prerequisite skills, hands-on exercises',
+    council_lens: 'complexity curve, skill building path, prerequisites, time investment, learning milestones, common beginner mistakes',
+  },
+  {
+    id: 'professional',
+    label: 'Work Project',
+    icon: '🏢',
+    desc: 'Solve a real business problem at work',
+    output_preview: 'Business case · ROI analysis · Stakeholder justification · Delivery risk',
+    research_focus: 'enterprise solutions, build vs buy tradeoffs, integration patterns, team adoption costs, ROI metrics, existing tool landscape, vendor comparison, maintenance burden',
+    council_lens: 'business ROI, delivery timeline, team skill requirements, maintenance burden, stakeholder justification, integration complexity, build vs buy decision, long-term ownership cost',
   },
 ]
 
@@ -67,7 +70,7 @@ export const STAGES = [
 ]
 
 export const LEVEL_COLORS: Record<string, string> = {
-  Beginner: 'text-emerald-400 border-emerald-400/25 bg-emerald-400/5',
+  Beginner:     'text-emerald-400 border-emerald-400/25 bg-emerald-400/5',
   Intermediate: 'text-amber-400 border-amber-400/25 bg-amber-400/5',
-  Expert: 'text-purple-400 border-purple-400/25 bg-purple-400/5',
+  Expert:       'text-purple-400 border-purple-400/25 bg-purple-400/5',
 }

@@ -19,6 +19,8 @@ import DiagramsCard from '../components/cards/DiagramsCard'
 import GraphCard from '../components/cards/GraphCard'
 import NewSessionCard from '../components/cards/NewSessionCard'
 import DownloadCard from '../components/cards/DownloadCard'
+import ProCouncilCard from '../components/cards/ProCouncilCard'
+import QuizCard from '../components/cards/QuizCard'
 import Sidebar from '../components/sidebar/Sidebar'
 import UserMenu from '../components/sidebar/UserMenu'
 import PreviewPanel from '../components/panels/PreviewPanel'
@@ -33,6 +35,11 @@ import {
   runDiscussion,
   runDiagrams,
   runProjectGraph,
+  runProCouncil,
+  startWorkflow,
+  executeWorkflowStage,
+  approveWorkflowStage,
+  rejectWorkflowStage,
 } from '../lib/api'
 import { PURPOSE_OPTIONS } from '../lib/constants'
 import {
@@ -132,8 +139,16 @@ export default function Home() {
   const [sessionHistory,        setSessionHistory]        = useState<Message[]>([])
   const [isLoadingHistory,      setIsLoadingHistory]      = useState(false)
   const [cameFromGate,          setCameFromGate]          = useState(false)
-  const [previewContent,        setPreviewContent]        = useState<any>(null)
-
+  const [userType, setUserType] = useState<'student' | 'professional'>('student')
+  const [previewContent, setPreviewContent] = useState<any>(null)
+  const [proCouncilResult,        setProCouncilResult]        = useState<any>(null)
+const [workflowStage,           setWorkflowStage]           = useState<string | null>(null)
+const [workflowOutput,          setWorkflowOutput]          = useState<any>(null)
+const [workflowApprovedDecisions, setWorkflowApprovedDecisions] = useState<Record<string, any>>({})
+const [workflowProjectId,       setWorkflowProjectId]       = useState<string | null>(null)
+const [quizGraph,               setQuizGraph]               = useState<any>(null)
+const [quizDiagrams,            setQuizDiagrams]             = useState<any[]>([])
+const [showQuiz,                setShowQuiz]                 = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   // ── Auth + project init ───────────────────────
@@ -247,7 +262,20 @@ export default function Home() {
         graph:   r4.result.graph,
       })
 
+      // Store for quiz
+      setQuizGraph(r4.result.graph || {})
+      setQuizDiagrams(r3.result.diagrams || [])
+      setShowQuiz(true)
+
       addMsg({ type: 'complete', projectId: dbId })
+      addMsg({
+        type:         'quiz',
+        projectId:    dbId,
+        idea:         chosenIdea,
+        role:         intakeData?.role || gateData.role || 'Engineer',
+        projectGraph: r4.result.graph || {},
+        diagrams:     r3.result.diagrams || [],
+      })
       setShowNewSession(true)
       setSidebarRefresh(prev => prev + 1)
     } catch (err) {
@@ -297,6 +325,47 @@ export default function Home() {
 
     } catch (err) {
       updateMsg(thinkId, { type: 'error', message: err instanceof Error ? err.message : 'Could not generate ideas.' })
+    } finally {
+      setIsRunning(false)
+      setActiveStage(null)
+    }
+  }
+
+  // ── Pro Flow ──────────────────────────────────
+
+  const runProFlow = async (task: string, context: string = '') => {
+    const thinkId = addMsg({
+      type: 'thinking', stage: 'Professional Council',
+      message: 'Senior Architect, Security Engineer, DevOps Engineer, Backend Engineer, and Tech Lead analyzing your task...',
+    })
+    setIsRunning(true)
+    setActiveStage('analysis')
+
+    try {
+      const projectId = `pro-${Date.now()}`
+      const role      = gateData.role || 'Software Engineer'
+
+      const r1 = await runProCouncil(projectId, context ? `${task}\n\nBLOCKER RESOLUTIONS:\n${context}` : task, role)
+      const verdict = r1.result?.verdict || {}
+      const agentOutputs = r1.result?.agent_outputs || []
+
+      setProCouncilResult({ verdict, agentOutputs, task, projectId })
+
+      updateMsg(thinkId, {
+        type:         'pro_council',
+        verdict,
+        agentOutputs,
+        task,
+        projectId,
+        role,
+        resolvedContext: context || undefined,
+      })
+
+    } catch (err) {
+      updateMsg(thinkId, {
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Professional council failed.',
+      })
     } finally {
       setIsRunning(false)
       setActiveStage(null)
@@ -389,6 +458,8 @@ export default function Home() {
       setActiveStage(null)
     }
   }
+
+  
 
   // ── More options ──────────────────────────────
 
@@ -524,11 +595,25 @@ export default function Home() {
 
   const handleGateAnswer = async (step: number, value: string) => {
     if (step === 1) {
-      if (value === 'existing') { setGateStep(5); addMsg({ type: 'chosen', choice: '→ Resuming last project...' }); return }
-      setGateData(prev => ({ ...prev, project_type: value })); setGateStep(2); return
+      if (value === 'professional') {
+        setUserType('professional')
+        setGateData(prev => ({ ...prev, project_type: 'professional' }))
+        setGateStep(5)
+        setIntakeData({ purpose: 'professional', role: '', originalMessage: '' })
+        addMsg({ type: 'chosen', choice: '→ Professional mode — describe your task and agents will respond' })
+        return
+      }
+      setUserType('student')
+      setGateData(prev => ({ ...prev, project_type: value }))
+      setGateStep(2)
+      return
     }
     if (step === 2) { setGateData(prev => ({ ...prev, role: value }));    setGateStep(3); return }
-    if (step === 3) { setGateData(prev => ({ ...prev, idea: value }));    setGateStep(4); return }
+    if (step === 3) {
+      setGateData(prev => ({ ...prev, idea: value }))
+      setGateStep(4)
+      return
+    }
     if (step === 4) {
       const finalData = { ...gateData, purpose: value }
       setGateData(finalData)
@@ -570,6 +655,12 @@ export default function Home() {
     const text = input.trim()
     setInput('')
     addMsg({ type: 'user', text })
+
+    if (userType === 'professional') {
+      await runProFlow(text)
+      return
+    }
+
     if (intakeData) {
       setActiveProjectId(null)
       setActiveResearchSummary('')
@@ -670,6 +761,7 @@ export default function Home() {
     setDiscussionMsgId(null)
     setIsDiscussing(false)
     setDbProjectId(null)
+    setUserType('student')
     setActiveSessionId(null)
     setShowNewSession(false)
     setViewingSession(null)
@@ -892,6 +984,23 @@ export default function Home() {
         })}
       />
     )
+    if (content.type === 'quiz') return (
+      <QuizCard
+        projectId={content.projectId}
+        idea={content.idea}
+        role={content.role}
+        projectGraph={content.projectGraph}
+        diagrams={content.diagrams}
+        onSkip={() => {
+          setShowQuiz(false)
+          addMsg({ type: 'chosen', choice: '→ Quiz skipped — moving to next stage' })
+        }}
+        onComplete={(gaps) => {
+          setShowQuiz(false)
+          addMsg({ type: 'chosen', choice: `→ Quiz complete — ${gaps.length} knowledge gaps saved` })
+        }}
+      />
+    )
     if (content.type === 'complete') return (
       <div className="space-y-3">
         <div className="flex items-center gap-3 bg-[#1a2e1a] border border-[#2ea04326] rounded-xl px-4 py-3">
@@ -919,6 +1028,25 @@ export default function Home() {
         content={content.content}
         mimeType={content.mimeType}
         label={content.label}
+      />
+    )
+
+    if (content.type === 'pro_council') return (
+      <ProCouncilCard
+        verdict={content.verdict}
+        agentOutputs={content.agentOutputs}
+        task={content.task}
+        projectId={content.projectId}
+        role={content.role}
+        resolvedContext={content.resolvedContext}
+        onStartBuilding={() => {
+          addMsg({ type: 'chosen', choice: '→ Starting build pipeline — Planning Agent activating...' })
+        }}
+        onResolveBlockers={(resolutions) => {
+          addMsg({ type: 'user', text: `Blocker resolutions: ${resolutions.slice(0, 80)}...` })
+          runProFlow(content.task, resolutions)
+        }}
+        disabled={isRunning}
       />
     )
 
@@ -962,20 +1090,20 @@ export default function Home() {
         <div className="flex flex-col flex-1 min-w-0 h-screen">
           <header className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-[#21262d]">
             <div className="flex items-center gap-2">
-              {!sidebarOpen && (
-                <button onClick={() => setSidebarOpen(true)}
-                  className="text-[#484f58] hover:text-[#e6edf3] transition-colors text-sm w-7 h-7 flex items-center justify-center rounded hover:bg-[#161b22] mr-1">
-                  →
-                </button>
-              )}
+              
               <div className="w-7 h-7 rounded-lg bg-[#f0b429]/10 border border-[#f0b429]/20 flex items-center justify-center">
                 <span className="text-[#f0b429] text-sm font-bold">3</span>
               </div>
-              <span className="text-sm font-semibold">3Netra<span className="text-[#f0b429]">-AI</span></span>
+              <button
+                onClick={() => window.location.href = '/dashboard'}
+                className="text-sm font-semibold text-[#e6edf3] hover:text-[#f0b429] transition-colors"
+              >
+                3Netra<span className="text-[#f0b429]">-AI</span>
+              </button>
             </div>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1.5">
-                {[1,2,3,4].map(s => (
+                {(userType === 'professional' ? [1] : [1,2,3,4]).map(s => (
                   <div key={s} className={`rounded-full transition-all ${
                     s < gateStep ? 'w-5 h-1.5 bg-[#3fb950]'
                     : s === gateStep ? 'w-5 h-1.5 bg-[#f0b429]'
@@ -991,7 +1119,7 @@ export default function Home() {
             <div className="text-center mb-10">
               <h1 className="text-3xl font-semibold mb-3 tracking-tight">Your AI engineering team.</h1>
               <p className="text-sm text-[#8b949e] max-w-sm leading-relaxed">
-                {gateStep === 1 && "Let's get you set up. This takes less than 30 seconds."}
+                {gateStep === 1 && "Tell us who you are — this shapes every agent decision."}
                 {gateStep === 2 && "Your role shapes every piece of advice our agents give."}
                 {gateStep === 3 && "Have an idea? Great. No idea? We'll find the best one for you."}
                 {gateStep === 4 && "Purpose determines what success looks like for this project."}
@@ -999,7 +1127,7 @@ export default function Home() {
             </div>
             {gateStep === 1 && <GateStep1 onAnswer={val => handleGateAnswer(1, val)} />}
             {gateStep === 2 && <GateStep2 onAnswer={val => handleGateAnswer(2, val)} onBack={() => handleGateBack(2)} />}
-            {gateStep === 3 && <GateStep3 onAnswer={val => handleGateAnswer(3, val)} onBack={() => handleGateBack(3)} />}
+            {gateStep === 3 && <GateStep3 onAnswer={val => handleGateAnswer(3, val)} onBack={() => handleGateBack(3)} userType={userType} />}
             {gateStep === 4 && <GateStep4 onAnswer={val => handleGateAnswer(4, val)} onBack={() => handleGateBack(4)} />}
           </main>
 
@@ -1032,9 +1160,12 @@ export default function Home() {
               <div className="w-7 h-7 rounded-lg bg-[#f0b429]/10 border border-[#f0b429]/20 flex items-center justify-center">
                 <span className="text-[#f0b429] text-sm font-bold">3</span>
               </div>
-              <span className="text-sm font-semibold text-[#e6edf3]">
+              <button
+                onClick={() => window.location.href = '/dashboard'}
+                className="text-sm font-semibold text-[#e6edf3] hover:text-[#f0b429] transition-colors"
+              >
                 3Netra<span className="text-[#f0b429]">-AI</span>
-              </span>
+              </button>
             </div>
             <div className="w-px h-4 bg-[#21262d]" />
             <span className="hidden sm:block text-xs text-[#484f58] font-mono">Your AI engineering team</span>
@@ -1050,12 +1181,7 @@ export default function Home() {
                 📋 Project
               </button>
             )}
-            {messages.length > 0 && !isRunning && !pendingProject && !viewingSession && (
-              <button onClick={handleRethink}
-                className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-[#161b22] border border-[#30363d] text-[#8b949e] hover:text-[#e6edf3] hover:border-[#8b949e] rounded-lg transition-colors font-mono">
-                <span className="text-[#f0b429]">+</span> new project
-              </button>
-            )}
+            
             <div className="flex items-center gap-1.5">
               <div className={`w-1.5 h-1.5 rounded-full ${isRunning || isDiscussing ? 'bg-amber-400 animate-pulse' : 'bg-[#3fb950]'}`} />
               <span className="text-xs text-[#484f58] font-mono hidden sm:block">
@@ -1150,7 +1276,7 @@ export default function Home() {
               </div>
             ) : (
               <div className="max-w-2xl mx-auto space-y-3">
-                <GateSummary gateData={gateData} onUpdate={handleGateUpdate} />
+                {userType !== 'professional' && <GateSummary gateData={gateData} onUpdate={handleGateUpdate} />}
                 {messages.map(msg => <div key={msg.id}>{renderMessage(msg)}</div>)}
               </div>
             )}

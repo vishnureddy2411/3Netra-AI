@@ -223,3 +223,145 @@ export function buildSelectedProject(
     projectId,
   }
 }
+
+// ── Professional Council ──────────────────────
+
+export async function runProCouncil(
+  projectId: string,
+  task: string,
+  role: string,
+) {
+  return apiPost('pro-council', {
+    project_id: projectId,
+    task,
+    role,
+  })
+}
+
+// ── Workflow ──────────────────────────────────
+
+export async function startWorkflow(
+  projectId: string,
+  idea: string,
+  role: string,
+  purpose: string,
+  approvedVerdict?: object,
+) {
+  return apiPost('workflow/start', {
+    project_id:       projectId,
+    idea,
+    role,
+    purpose,
+    approved_verdict: approvedVerdict,
+  })
+}
+
+export async function executeWorkflowStage(
+  projectId:        string,
+  stage:            string,
+  idea:             string,
+  role:             string,
+  purpose:          string,
+  approvedDecisions: object = {},
+) {
+  return apiPost('workflow/stage', {
+    project_id:         projectId,
+    stage,
+    idea,
+    role,
+    purpose,
+    approved_decisions: approvedDecisions,
+  })
+}
+
+export async function approveWorkflowStage(
+  projectId:    string,
+  currentStage: string,
+  stageOutput:  object = {},
+) {
+  return apiPost('workflow/approve', {
+    project_id:    projectId,
+    current_stage: currentStage,
+    stage_output:  stageOutput,
+  })
+}
+
+export async function rejectWorkflowStage(
+  projectId:        string,
+  currentStage:     string,
+  idea:             string,
+  role:             string,
+  purpose:          string,
+  feedback:         string,
+  approvedDecisions: object = {},
+) {
+  return apiPost('workflow/reject', {
+    project_id:         projectId,
+    current_stage:      currentStage,
+    idea,
+    role,
+    purpose,
+    feedback,
+    approved_decisions: approvedDecisions,
+  })
+}
+
+export async function getWorkflowStatus(projectId: string) {
+  return apiGet(`workflow/status/${projectId}`)
+}
+
+// ── Quiz ──────────────────────────────────────
+
+export async function startQuiz(
+  projectId:    string,
+  idea:         string,
+  role:         string,
+  projectGraph: object,
+  diagrams:     object[],
+) {
+  return apiPost('quiz/start', { project_id: projectId, idea, role, project_graph: projectGraph, diagrams })
+}
+
+export async function submitQuizAnswer(
+  projectId:    string,
+  idea:         string,
+  role:         string,
+  question:     object,
+  userAnswer:   string,
+  projectGraph: object,
+) {
+  return apiPost('quiz/answer', { project_id: projectId, idea, role, question, user_answer: userAnswer, project_graph: projectGraph })
+}
+
+export async function getNextQuizRound(
+  projectId:      string,
+  idea:           string,
+  role:           string,
+  projectGraph:   object,
+  diagrams:       object[],
+  roundNumber:    number,
+  askedQuestions: string[],
+) {
+  return apiPost('quiz/next', { project_id: projectId, idea, role, project_graph: projectGraph, diagrams, round_number: roundNumber, asked_questions: askedQuestions })
+}
+
+export async function summarizeQuizRound(
+  projectId:   string,
+  questions:   object[],
+  evaluations: object[],
+  roundNumber: number,
+  idea:        string,
+  role:        string,
+) {
+  return apiPost('quiz/summarize', { project_id: projectId, questions, evaluations, round_number: roundNumber, idea, role })
+}
+
+export async function completeQuiz(
+  projectId: string,
+  allGaps:   string[],
+  allRounds: object[],
+  idea:      string,
+  role:      string,
+) {
+  return apiPost('quiz/complete', { project_id: projectId, all_gaps: allGaps, all_rounds: allRounds, idea, role })
+}

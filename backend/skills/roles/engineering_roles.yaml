@@ -1,0 +1,2413 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# 3Netra-AI — Engineering Roles Registry
+# Complete list of all software engineering roles mapped to agent skills
+# Used by both Student Pipeline and Professional Mode
+# ─────────────────────────────────────────────────────────────────────────────
+
+version: "1.0.0"
+total_roles: 155
+categories: 10
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CATEGORY 1 — Core Software Engineering
+# ─────────────────────────────────────────────────────────────────────────────
+
+category_1:
+  name: "Core Software Engineering"
+  agent_skill: "frontend_agent | backend_agent | planning_agent"
+  roles:
+    - id: CSE001
+      name: "Software Engineer / SDE"
+      description: "Designs, builds, and maintains software systems across the full stack"
+      responsibilities:
+        - "Write clean, maintainable, and tested code"
+        - "Design and implement software features end to end"
+        - "Participate in code reviews and technical discussions"
+        - "Debug and resolve production issues"
+        - "Collaborate with product and design teams"
+      stage_used_in: ["planning", "frontend_build", "backend_build", "integration"]
+      mapped_agent_skill: "planning_agent"
+
+    - id: CSE002
+      name: "Frontend Engineer"
+      description: "Builds user-facing interfaces and client-side application logic"
+      responsibilities:
+        - "Build responsive, accessible, and performant UI components"
+        - "Manage client-side state and data fetching"
+        - "Implement design system components"
+        - "Handle loading, error, and empty states"
+        - "Optimize frontend performance and Core Web Vitals"
+      stage_used_in: ["frontend_build", "integration"]
+      mapped_agent_skill: "frontend_agent"
+
+    - id: CSE003
+      name: "Backend Engineer"
+      description: "Builds server-side logic, APIs, and business processes"
+      responsibilities:
+        - "Design and implement REST and GraphQL APIs"
+        - "Write business logic and domain services"
+        - "Handle authentication, authorization, and validation"
+        - "Manage error handling and logging"
+        - "Optimize query performance and data access patterns"
+      stage_used_in: ["backend_build", "integration"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: CSE004
+      name: "Full-Stack Engineer"
+      description: "Works across both frontend and backend of a software system"
+      responsibilities:
+        - "Build complete features from UI to database"
+        - "Connect frontend with backend APIs"
+        - "Manage end-to-end data flow"
+        - "Debug across the full stack"
+        - "Own feature delivery independently"
+      stage_used_in: ["frontend_build", "backend_build", "integration"]
+      mapped_agent_skill: "frontend_agent | backend_agent"
+
+    - id: CSE005
+      name: "Web Engineer"
+      description: "Specializes in web technologies, browser APIs, and web standards"
+      responsibilities:
+        - "Build web applications using modern browser APIs"
+        - "Ensure cross-browser compatibility"
+        - "Implement progressive web app features"
+        - "Optimize web performance and loading strategies"
+        - "Handle web security best practices"
+      stage_used_in: ["frontend_build"]
+      mapped_agent_skill: "frontend_agent"
+
+    - id: CSE006
+      name: "UI Engineer"
+      description: "Focuses on user interface implementation, design fidelity, and component systems"
+      responsibilities:
+        - "Implement pixel-perfect UI from design specifications"
+        - "Build reusable component libraries"
+        - "Ensure design system consistency"
+        - "Handle animations and micro-interactions"
+        - "Test UI across devices and screen sizes"
+      stage_used_in: ["frontend_build"]
+      mapped_agent_skill: "frontend_agent"
+
+    - id: CSE007
+      name: "Product Engineer"
+      description: "Bridges product thinking and engineering execution — owns features end to end"
+      responsibilities:
+        - "Translate product requirements into technical solutions"
+        - "Define MVP scope and feature prioritization"
+        - "Make pragmatic build vs buy decisions"
+        - "Own the user experience of features they build"
+        - "Work directly with users and stakeholders"
+      stage_used_in: ["planning", "frontend_build", "backend_build"]
+      mapped_agent_skill: "planning_agent"
+
+    - id: CSE008
+      name: "Application Engineer"
+      description: "Builds and maintains application-layer software for specific business domains"
+      responsibilities:
+        - "Build domain-specific application features"
+        - "Integrate third-party services and APIs"
+        - "Maintain and evolve existing application codebases"
+        - "Implement business rules and workflows"
+        - "Support application deployment and operations"
+      stage_used_in: ["backend_build", "integration"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: CSE009
+      name: "API Engineer"
+      description: "Designs, builds, and maintains APIs consumed by internal teams and external partners"
+      responsibilities:
+        - "Design API contracts and schemas"
+        - "Implement versioned, backward-compatible APIs"
+        - "Write API documentation"
+        - "Handle API authentication and rate limiting"
+        - "Monitor API performance and reliability"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: CSE010
+      name: "Integration Engineer"
+      description: "Connects disparate systems, services, and third-party platforms"
+      responsibilities:
+        - "Build integrations between internal and external systems"
+        - "Design event-driven and webhook-based integrations"
+        - "Handle data transformation and mapping between systems"
+        - "Ensure integration reliability and error recovery"
+        - "Document integration contracts and failure modes"
+      stage_used_in: ["integration", "backend_build"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: CSE011
+      name: "SDK Engineer"
+      description: "Builds software development kits for developers to consume services"
+      responsibilities:
+        - "Design developer-friendly API abstractions"
+        - "Build SDKs in multiple programming languages"
+        - "Write comprehensive SDK documentation and examples"
+        - "Maintain backward compatibility across SDK versions"
+        - "Test SDK behavior across supported environments"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: CSE012
+      name: "Desktop Application Engineer"
+      description: "Builds native or cross-platform desktop applications"
+      responsibilities:
+        - "Build desktop applications using Electron, Tauri, or native frameworks"
+        - "Implement OS-level integrations — file system, notifications, tray"
+        - "Handle desktop application packaging and distribution"
+        - "Manage auto-update mechanisms"
+        - "Optimize desktop application performance and memory usage"
+      stage_used_in: ["frontend_build"]
+      mapped_agent_skill: "frontend_agent"
+
+    - id: CSE013
+      name: "Mobile Engineer"
+      description: "Builds mobile applications for iOS, Android, or cross-platform"
+      responsibilities:
+        - "Build mobile application screens and navigation"
+        - "Implement mobile-specific UX patterns and gestures"
+        - "Handle mobile permissions, notifications, and background tasks"
+        - "Manage mobile app state and offline capabilities"
+        - "Prepare apps for App Store and Play Store submission"
+      stage_used_in: ["frontend_build"]
+      mapped_agent_skill: "frontend_agent"
+
+    - id: CSE014
+      name: "iOS Engineer"
+      description: "Builds native iOS applications using Swift and Apple frameworks"
+      responsibilities:
+        - "Build Swift/SwiftUI applications for iPhone and iPad"
+        - "Implement Apple platform features — HealthKit, CoreML, ARKit"
+        - "Handle iOS lifecycle, memory management, and performance"
+        - "Follow Apple Human Interface Guidelines"
+        - "Submit and maintain apps on the App Store"
+      stage_used_in: ["frontend_build"]
+      mapped_agent_skill: "frontend_agent"
+
+    - id: CSE015
+      name: "Android Engineer"
+      description: "Builds native Android applications using Kotlin and Android frameworks"
+      responsibilities:
+        - "Build Kotlin/Jetpack Compose applications for Android devices"
+        - "Implement Android platform features — notifications, background work, sensors"
+        - "Handle Android fragmentation and device compatibility"
+        - "Follow Material Design guidelines"
+        - "Submit and maintain apps on the Play Store"
+      stage_used_in: ["frontend_build"]
+      mapped_agent_skill: "frontend_agent"
+
+    - id: CSE016
+      name: "Cross-Platform Mobile Engineer"
+      description: "Builds mobile applications that run on both iOS and Android from a single codebase"
+      responsibilities:
+        - "Build React Native or Flutter applications"
+        - "Handle platform-specific differences and native modules"
+        - "Optimize cross-platform performance"
+        - "Manage shared business logic across platforms"
+        - "Test on both iOS and Android devices"
+      stage_used_in: ["frontend_build"]
+      mapped_agent_skill: "frontend_agent"
+
+    - id: CSE017
+      name: "Game Engineer"
+      description: "Builds interactive game systems, mechanics, and engines"
+      responsibilities:
+        - "Implement game mechanics and physics systems"
+        - "Build game UI and HUD systems"
+        - "Optimize game performance and rendering"
+        - "Implement multiplayer and networking features"
+        - "Manage game state and save systems"
+      stage_used_in: ["frontend_build", "backend_build"]
+      mapped_agent_skill: "frontend_agent"
+
+    - id: CSE018
+      name: "Graphics Engineer"
+      description: "Builds rendering systems, shaders, and visual effects"
+      responsibilities:
+        - "Write GPU shaders and rendering pipelines"
+        - "Optimize graphics performance and memory"
+        - "Implement real-time visual effects"
+        - "Work with graphics APIs — OpenGL, Vulkan, Metal, WebGPU"
+        - "Build procedural generation and animation systems"
+      stage_used_in: ["frontend_build"]
+      mapped_agent_skill: "frontend_agent"
+
+    - id: CSE019
+      name: "AR/VR/XR Engineer"
+      description: "Builds augmented, virtual, and mixed reality experiences"
+      responsibilities:
+        - "Build immersive AR/VR experiences using Unity or Unreal"
+        - "Implement spatial computing and 3D interaction patterns"
+        - "Handle device-specific constraints and performance"
+        - "Build hand tracking and gesture recognition systems"
+        - "Optimize for target headset or device hardware"
+      stage_used_in: ["frontend_build"]
+      mapped_agent_skill: "frontend_agent"
+
+    - id: CSE020
+      name: "Embedded Software Engineer"
+      description: "Writes software that runs directly on hardware devices and microcontrollers"
+      responsibilities:
+        - "Write firmware and embedded software in C/C++"
+        - "Interface with hardware peripherals via protocols — I2C, SPI, UART"
+        - "Optimize for constrained memory and CPU resources"
+        - "Implement real-time operating system tasks"
+        - "Debug hardware and software interactions"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: CSE021
+      name: "Firmware Engineer"
+      description: "Writes low-level software embedded in hardware devices"
+      responsibilities:
+        - "Write bootloader and initialization code"
+        - "Implement hardware abstraction layers"
+        - "Handle interrupt service routines and timing-critical code"
+        - "Manage power consumption and sleep modes"
+        - "Support over-the-air firmware update mechanisms"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: CSE022
+      name: "Systems Software Engineer"
+      description: "Builds operating systems, runtimes, and low-level infrastructure software"
+      responsibilities:
+        - "Build operating system components and kernel modules"
+        - "Implement system calls and process management"
+        - "Design memory management and allocator systems"
+        - "Build system libraries and runtime environments"
+        - "Profile and optimize system-level performance"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: CSE023
+      name: "Kernel Engineer"
+      description: "Develops and maintains operating system kernel components"
+      responsibilities:
+        - "Write and maintain Linux kernel patches"
+        - "Implement device drivers and kernel modules"
+        - "Debug kernel panics and system-level crashes"
+        - "Optimize scheduler, memory subsystem, and I/O"
+        - "Contribute to open source kernel projects"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: CSE024
+      name: "Compiler Engineer"
+      description: "Builds compilers, interpreters, and language toolchains"
+      responsibilities:
+        - "Design and implement compiler frontends and backends"
+        - "Build language parsers, ASTs, and semantic analyzers"
+        - "Implement code generation and optimization passes"
+        - "Build language runtimes and garbage collectors"
+        - "Design programming language features and type systems"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: CSE025
+      name: "Runtime Engineer"
+      description: "Builds execution environments and runtime systems for programming languages"
+      responsibilities:
+        - "Implement virtual machines and bytecode interpreters"
+        - "Build garbage collectors and memory management systems"
+        - "Optimize JIT compilation and execution performance"
+        - "Design runtime APIs and extension mechanisms"
+        - "Debug runtime crashes and memory issues"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: CSE026
+      name: "Performance Engineer"
+      description: "Identifies and eliminates performance bottlenecks across the full system"
+      responsibilities:
+        - "Profile CPU, memory, and I/O performance across the stack"
+        - "Identify and resolve latency bottlenecks in hot paths"
+        - "Design and run performance benchmarks"
+        - "Optimize database queries, caching, and network calls"
+        - "Set and enforce performance budgets and SLOs"
+      stage_used_in: ["testing", "final_review"]
+      mapped_agent_skill: "testing_agent"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CATEGORY 2 — Backend, Platform, and Infrastructure
+# ─────────────────────────────────────────────────────────────────────────────
+
+category_2:
+  name: "Backend, Platform, and Infrastructure"
+  agent_skill: "backend_agent | devops_agent"
+  roles:
+    - id: BPI001
+      name: "Backend Platform Engineer"
+      description: "Builds internal platforms and shared services that product teams build on top of"
+      responsibilities:
+        - "Build shared internal services and platform APIs"
+        - "Design platform abstractions that reduce duplication"
+        - "Maintain backward compatibility across platform consumers"
+        - "Define platform SLAs and support models"
+        - "Provide developer tooling and documentation for platform use"
+      stage_used_in: ["backend_build", "deployment"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: BPI002
+      name: "Platform Engineer"
+      description: "Builds and maintains the engineering platform — tools, services, and infrastructure developers use"
+      responsibilities:
+        - "Build and maintain developer platform tools and services"
+        - "Reduce toil for product engineers through platform automation"
+        - "Define and enforce platform standards"
+        - "Manage internal developer portals and tooling"
+        - "Monitor and improve developer productivity metrics"
+      stage_used_in: ["deployment"]
+      mapped_agent_skill: "devops_agent"
+
+    - id: BPI003
+      name: "Infrastructure Engineer"
+      description: "Designs and manages the compute, network, and storage infrastructure"
+      responsibilities:
+        - "Design and provision cloud infrastructure"
+        - "Manage virtual machines, containers, and serverless resources"
+        - "Implement infrastructure as code using Terraform or Pulumi"
+        - "Monitor infrastructure health and capacity"
+        - "Manage infrastructure costs and optimization"
+      stage_used_in: ["deployment"]
+      mapped_agent_skill: "devops_agent"
+
+    - id: BPI004
+      name: "Cloud Engineer"
+      description: "Specializes in cloud platform services, architecture, and cost management"
+      responsibilities:
+        - "Design cloud-native architectures on AWS, GCP, or Azure"
+        - "Implement cloud services — storage, queues, functions, databases"
+        - "Manage cloud costs and resource optimization"
+        - "Implement multi-region and disaster recovery strategies"
+        - "Enforce cloud security and compliance standards"
+      stage_used_in: ["deployment"]
+      mapped_agent_skill: "devops_agent"
+
+    - id: BPI005
+      name: "DevOps Engineer"
+      description: "Bridges development and operations — builds deployment pipelines and operational tooling"
+      responsibilities:
+        - "Build and maintain CI/CD pipelines"
+        - "Automate deployment, testing, and release processes"
+        - "Manage container orchestration with Kubernetes or ECS"
+        - "Implement monitoring, alerting, and incident response tooling"
+        - "Reduce deployment risk through automation and validation"
+      stage_used_in: ["deployment"]
+      mapped_agent_skill: "devops_agent"
+
+    - id: BPI006
+      name: "Site Reliability Engineer / SRE"
+      description: "Applies software engineering to operations problems — builds systems that are reliable, scalable, and observable"
+      responsibilities:
+        - "Define and track SLIs, SLOs, and error budgets"
+        - "Build reliability tooling — chaos engineering, synthetic monitoring"
+        - "Lead incident response and postmortem processes"
+        - "Automate toil reduction across operations"
+        - "Review architecture for reliability and operability"
+      stage_used_in: ["deployment", "final_review"]
+      mapped_agent_skill: "devops_agent"
+
+    - id: BPI007
+      name: "Production Engineer"
+      description: "Owns the reliability and performance of production systems"
+      responsibilities:
+        - "Monitor production system health and performance"
+        - "Respond to and resolve production incidents"
+        - "Implement capacity planning and scaling strategies"
+        - "Conduct production readiness reviews"
+        - "Build runbooks and operational documentation"
+      stage_used_in: ["deployment", "final_review"]
+      mapped_agent_skill: "devops_agent"
+
+    - id: BPI008
+      name: "Release Engineer"
+      description: "Manages the software release process from code to production"
+      responsibilities:
+        - "Design and manage release pipelines"
+        - "Coordinate release schedules across teams"
+        - "Implement and manage feature flags and rollout strategies"
+        - "Manage release branching and versioning"
+        - "Document release processes and rollback procedures"
+      stage_used_in: ["deployment"]
+      mapped_agent_skill: "devops_agent"
+
+    - id: BPI009
+      name: "Build Engineer"
+      description: "Maintains build systems, toolchains, and compilation infrastructure"
+      responsibilities:
+        - "Manage build systems — Bazel, Gradle, Make, or equivalent"
+        - "Optimize build times and caching strategies"
+        - "Maintain compiler toolchains and build dependencies"
+        - "Support cross-platform build targets"
+        - "Debug build failures and dependency conflicts"
+      stage_used_in: ["deployment"]
+      mapped_agent_skill: "devops_agent"
+
+    - id: BPI010
+      name: "CI/CD Engineer"
+      description: "Designs and implements continuous integration and continuous delivery pipelines"
+      responsibilities:
+        - "Build automated CI pipelines with test, lint, and security gates"
+        - "Design CD pipelines with canary, blue-green, or rolling deployments"
+        - "Manage pipeline infrastructure — GitHub Actions, Jenkins, CircleCI"
+        - "Reduce CI/CD feedback loop times"
+        - "Implement deployment rollback automation"
+      stage_used_in: ["deployment"]
+      mapped_agent_skill: "devops_agent"
+
+    - id: BPI011
+      name: "Kubernetes Engineer"
+      description: "Designs and operates Kubernetes clusters and workloads"
+      responsibilities:
+        - "Design Kubernetes cluster architecture"
+        - "Manage workload deployments, services, and ingress"
+        - "Implement cluster autoscaling and resource management"
+        - "Operate Kubernetes add-ons — service mesh, observability, security"
+        - "Debug and resolve cluster and workload issues"
+      stage_used_in: ["deployment"]
+      mapped_agent_skill: "devops_agent"
+
+    - id: BPI012
+      name: "Containerization Engineer"
+      description: "Specializes in container technologies — Docker, OCI, and container runtimes"
+      responsibilities:
+        - "Write optimized, minimal Dockerfiles"
+        - "Manage container image registries and scanning"
+        - "Implement container security best practices"
+        - "Design multi-stage builds for production images"
+        - "Manage container networking and storage"
+      stage_used_in: ["deployment"]
+      mapped_agent_skill: "devops_agent"
+
+    - id: BPI013
+      name: "Observability Engineer"
+      description: "Builds the systems that make production software understandable — metrics, logs, and traces"
+      responsibilities:
+        - "Implement distributed tracing across services"
+        - "Build metrics collection and dashboarding"
+        - "Design structured logging standards"
+        - "Set up alerting rules and on-call rotations"
+        - "Build internal observability tooling and developer guides"
+      stage_used_in: ["deployment", "final_review"]
+      mapped_agent_skill: "devops_agent"
+
+    - id: BPI014
+      name: "Reliability Engineer"
+      description: "Focuses on system reliability — uptime, fault tolerance, and recovery"
+      responsibilities:
+        - "Design fault-tolerant system architectures"
+        - "Implement circuit breakers, retries, and fallbacks"
+        - "Run game days and chaos experiments"
+        - "Define and monitor reliability targets"
+        - "Lead blameless postmortem processes"
+      stage_used_in: ["deployment", "final_review"]
+      mapped_agent_skill: "devops_agent"
+
+    - id: BPI015
+      name: "Chaos Engineer"
+      description: "Proactively injects failure into systems to find reliability weaknesses before users do"
+      responsibilities:
+        - "Design and run controlled chaos experiments"
+        - "Identify system weaknesses through failure injection"
+        - "Build chaos engineering tooling and frameworks"
+        - "Document findings and drive reliability improvements"
+        - "Educate teams on fault tolerance patterns"
+      stage_used_in: ["testing", "final_review"]
+      mapped_agent_skill: "testing_agent"
+
+    - id: BPI016
+      name: "Capacity Engineer"
+      description: "Plans and manages infrastructure capacity for current and future load"
+      responsibilities:
+        - "Model traffic growth and infrastructure requirements"
+        - "Plan capacity expansions before they are needed"
+        - "Optimize resource utilization and cost"
+        - "Build capacity planning tooling and dashboards"
+        - "Define scaling triggers and automation"
+      stage_used_in: ["deployment", "final_review"]
+      mapped_agent_skill: "devops_agent"
+
+    - id: BPI017
+      name: "Network Engineer"
+      description: "Designs and manages network infrastructure, routing, and connectivity"
+      responsibilities:
+        - "Design network topology and routing policies"
+        - "Manage VPCs, subnets, security groups, and peering"
+        - "Implement load balancing and traffic management"
+        - "Debug network latency, packet loss, and connectivity issues"
+        - "Enforce network security and segmentation"
+      stage_used_in: ["deployment"]
+      mapped_agent_skill: "devops_agent"
+
+    - id: BPI018
+      name: "Storage Engineer"
+      description: "Designs and manages storage systems — object, block, and file storage"
+      responsibilities:
+        - "Design storage architectures for different data types and access patterns"
+        - "Manage object storage — S3, GCS, or Azure Blob"
+        - "Implement backup, replication, and disaster recovery"
+        - "Optimize storage performance and cost"
+        - "Enforce data retention and lifecycle policies"
+      stage_used_in: ["deployment"]
+      mapped_agent_skill: "devops_agent"
+
+    - id: BPI019
+      name: "Database Reliability Engineer"
+      description: "Ensures databases are reliable, performant, and operable at scale"
+      responsibilities:
+        - "Manage database replication, failover, and backups"
+        - "Monitor database performance and optimize slow queries"
+        - "Plan and execute zero-downtime schema migrations"
+        - "Manage database capacity and scaling"
+        - "Respond to and resolve database incidents"
+      stage_used_in: ["database_design", "deployment"]
+      mapped_agent_skill: "database_agent"
+
+    - id: BPI020
+      name: "Cloud Infrastructure Engineer"
+      description: "Builds and maintains cloud infrastructure using infrastructure as code"
+      responsibilities:
+        - "Write and maintain Terraform, Pulumi, or CDK modules"
+        - "Design reusable infrastructure components"
+        - "Manage infrastructure state and drift detection"
+        - "Implement cloud governance and tagging standards"
+        - "Support multi-account and multi-region architectures"
+      stage_used_in: ["deployment"]
+      mapped_agent_skill: "devops_agent"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CATEGORY 3 — Data Engineering
+# ─────────────────────────────────────────────────────────────────────────────
+
+category_3:
+  name: "Data Engineering"
+  agent_skill: "database_agent | aiml_agent"
+  roles:
+    - id: DE001
+      name: "Data Engineer"
+      description: "Builds pipelines and infrastructure to collect, transform, and serve data"
+      responsibilities:
+        - "Design and build data ingestion pipelines"
+        - "Transform and clean raw data for downstream use"
+        - "Manage data warehouse and data lake infrastructure"
+        - "Ensure data quality, lineage, and reliability"
+        - "Build data models for analytics and product use"
+      stage_used_in: ["database_design", "backend_build"]
+      mapped_agent_skill: "database_agent"
+
+    - id: DE002
+      name: "Big Data Engineer"
+      description: "Processes and manages large-scale distributed data systems"
+      responsibilities:
+        - "Build distributed data processing with Spark, Flink, or Beam"
+        - "Design data architectures that scale to petabytes"
+        - "Manage HDFS, S3, or distributed file systems"
+        - "Optimize large-scale data jobs for cost and latency"
+        - "Debug distributed data processing failures"
+      stage_used_in: ["database_design", "backend_build"]
+      mapped_agent_skill: "database_agent"
+
+    - id: DE003
+      name: "ETL Engineer"
+      description: "Extracts, transforms, and loads data between systems"
+      responsibilities:
+        - "Design and implement ETL pipelines"
+        - "Handle data extraction from diverse source systems"
+        - "Implement data transformations and business rules"
+        - "Load data into target systems with validation"
+        - "Monitor and alert on ETL job failures"
+      stage_used_in: ["database_design", "backend_build"]
+      mapped_agent_skill: "database_agent"
+
+    - id: DE004
+      name: "ELT Engineer"
+      description: "Loads raw data first, then transforms inside the warehouse"
+      responsibilities:
+        - "Design ELT architectures using dbt and modern data stacks"
+        - "Build SQL-based transformation models"
+        - "Manage data warehouse loading and orchestration"
+        - "Implement data quality tests in the transformation layer"
+        - "Optimize transformation performance and cost"
+      stage_used_in: ["database_design", "backend_build"]
+      mapped_agent_skill: "database_agent"
+
+    - id: DE005
+      name: "Analytics Engineer"
+      description: "Transforms raw data into clean, modeled datasets for business use"
+      responsibilities:
+        - "Build semantic data models using dbt or similar tools"
+        - "Define business metrics and their calculation logic"
+        - "Collaborate with analysts to understand reporting needs"
+        - "Ensure data model documentation and discoverability"
+        - "Test data quality and business logic in models"
+      stage_used_in: ["database_design"]
+      mapped_agent_skill: "database_agent"
+
+    - id: DE006
+      name: "BI Engineer"
+      description: "Builds business intelligence infrastructure and reporting systems"
+      responsibilities:
+        - "Design and implement BI platform architecture"
+        - "Build data models optimized for BI tools"
+        - "Manage BI tooling — Looker, Tableau, Metabase"
+        - "Define and enforce metric definitions and governance"
+        - "Enable self-service analytics for business teams"
+      stage_used_in: ["database_design"]
+      mapped_agent_skill: "database_agent"
+
+    - id: DE007
+      name: "Data Platform Engineer"
+      description: "Builds internal data platforms that data teams use to manage data"
+      responsibilities:
+        - "Build data catalog and metadata management systems"
+        - "Implement data access control and governance tooling"
+        - "Build internal data APIs and data sharing mechanisms"
+        - "Manage data platform infrastructure and tooling"
+        - "Enable data discoverability across the organization"
+      stage_used_in: ["database_design"]
+      mapped_agent_skill: "database_agent"
+
+    - id: DE008
+      name: "Data Warehouse Engineer"
+      description: "Designs and manages enterprise data warehouses"
+      responsibilities:
+        - "Design dimensional and relational data warehouse schemas"
+        - "Manage data warehouse infrastructure — Snowflake, BigQuery, Redshift"
+        - "Optimize warehouse performance and cost"
+        - "Implement data loading and transformation workflows"
+        - "Manage warehouse access controls and security"
+      stage_used_in: ["database_design"]
+      mapped_agent_skill: "database_agent"
+
+    - id: DE009
+      name: "Data Lake Engineer"
+      description: "Builds and manages data lake infrastructure for raw and processed data"
+      responsibilities:
+        - "Design data lake architecture and storage zones"
+        - "Manage data lake infrastructure on cloud object storage"
+        - "Implement data cataloging and schema management"
+        - "Enforce data lake governance and access controls"
+        - "Build data lake ingestion and processing workflows"
+      stage_used_in: ["database_design"]
+      mapped_agent_skill: "database_agent"
+
+    - id: DE010
+      name: "Streaming Data Engineer"
+      description: "Builds real-time data processing and streaming pipelines"
+      responsibilities:
+        - "Build real-time data pipelines using Kafka, Kinesis, or Pub/Sub"
+        - "Implement stream processing with Flink, Spark Streaming, or ksqlDB"
+        - "Design event-driven architectures"
+        - "Handle late-arriving data and out-of-order events"
+        - "Monitor streaming pipeline latency and throughput"
+      stage_used_in: ["database_design", "backend_build"]
+      mapped_agent_skill: "database_agent"
+
+    - id: DE011
+      name: "Database Engineer"
+      description: "Designs and manages database systems for applications"
+      responsibilities:
+        - "Design database schemas optimized for application access patterns"
+        - "Implement and manage relational and NoSQL databases"
+        - "Write and optimize complex database queries"
+        - "Manage database migrations and schema evolution"
+        - "Monitor database performance and health"
+      stage_used_in: ["database_design"]
+      mapped_agent_skill: "database_agent"
+
+    - id: DE012
+      name: "Data Quality Engineer"
+      description: "Ensures data is accurate, complete, consistent, and trustworthy"
+      responsibilities:
+        - "Define data quality rules and validation logic"
+        - "Build automated data quality testing frameworks"
+        - "Monitor data quality metrics and alert on failures"
+        - "Investigate and remediate data quality issues"
+        - "Document data quality standards and SLAs"
+      stage_used_in: ["database_design", "testing"]
+      mapped_agent_skill: "database_agent"
+
+    - id: DE013
+      name: "Data Governance Engineer"
+      description: "Implements policies and systems for data access, privacy, and compliance"
+      responsibilities:
+        - "Design and enforce data classification and access policies"
+        - "Implement data lineage and audit logging"
+        - "Ensure compliance with GDPR, CCPA, HIPAA, and similar regulations"
+        - "Build data catalog and metadata systems"
+        - "Define data retention and deletion policies"
+      stage_used_in: ["database_design", "deployment"]
+      mapped_agent_skill: "database_agent"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CATEGORY 4 — AI, ML, and Deep Learning
+# ─────────────────────────────────────────────────────────────────────────────
+
+category_4:
+  name: "AI, ML, and Deep Learning"
+  agent_skill: "aiml_agent"
+  roles:
+    - id: AI001
+      name: "Machine Learning Engineer"
+      description: "Builds and deploys machine learning systems in production"
+      responsibilities:
+        - "Design and implement ML pipelines from data to production"
+        - "Train, evaluate, and iterate on ML models"
+        - "Build model serving infrastructure"
+        - "Monitor model performance and detect drift"
+        - "Collaborate with data scientists to productionize research"
+      stage_used_in: ["backend_build", "deployment"]
+      mapped_agent_skill: "aiml_agent"
+
+    - id: AI002
+      name: "AI Engineer"
+      description: "Builds AI-powered products and systems using foundation models and ML"
+      responsibilities:
+        - "Integrate LLMs, vision models, and other AI APIs into products"
+        - "Design AI features that solve real user problems"
+        - "Implement prompt engineering and few-shot learning"
+        - "Build evaluation frameworks for AI outputs"
+        - "Monitor AI system performance and safety"
+      stage_used_in: ["backend_build", "deployment"]
+      mapped_agent_skill: "aiml_agent"
+
+    - id: AI003
+      name: "Deep Learning Engineer"
+      description: "Designs and trains deep neural networks for complex tasks"
+      responsibilities:
+        - "Design neural network architectures for specific tasks"
+        - "Train models at scale using distributed training frameworks"
+        - "Implement model optimization — quantization, distillation, pruning"
+        - "Debug training instabilities and convergence issues"
+        - "Benchmark and compare model architectures"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "aiml_agent"
+
+    - id: AI004
+      name: "Computer Vision Engineer"
+      description: "Builds systems that understand and process visual data"
+      responsibilities:
+        - "Build image classification, detection, and segmentation models"
+        - "Implement video understanding and tracking systems"
+        - "Handle image preprocessing, augmentation, and data pipelines"
+        - "Optimize CV models for edge and mobile deployment"
+        - "Evaluate model performance on domain-specific datasets"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "aiml_agent"
+
+    - id: AI005
+      name: "NLP Engineer"
+      description: "Builds systems that understand and generate natural language"
+      responsibilities:
+        - "Build text classification, extraction, and generation systems"
+        - "Implement information retrieval and search"
+        - "Fine-tune language models on domain-specific data"
+        - "Handle text preprocessing, tokenization, and cleaning"
+        - "Evaluate NLP models with domain-appropriate benchmarks"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "aiml_agent"
+
+    - id: AI006
+      name: "LLM Engineer"
+      description: "Specializes in building systems using large language models"
+      responsibilities:
+        - "Design LLM-powered application architectures"
+        - "Implement prompt engineering and chain-of-thought reasoning"
+        - "Build fine-tuning and instruction-tuning pipelines"
+        - "Evaluate LLM outputs for quality, safety, and accuracy"
+        - "Optimize LLM inference for cost and latency"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "aiml_agent"
+
+    - id: AI007
+      name: "Generative AI Engineer"
+      description: "Builds systems that generate text, images, audio, or video using AI"
+      responsibilities:
+        - "Build generative AI applications using diffusion models, LLMs, and multimodal models"
+        - "Design generation pipelines with quality control"
+        - "Implement content safety and moderation systems"
+        - "Evaluate generated output quality and diversity"
+        - "Optimize generation speed and compute costs"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "aiml_agent"
+
+    - id: AI008
+      name: "RAG Engineer"
+      description: "Builds retrieval-augmented generation systems for knowledge-grounded AI"
+      responsibilities:
+        - "Design retrieval pipelines — chunking, embedding, indexing"
+        - "Select and manage vector databases — Pinecone, Weaviate, pgvector"
+        - "Evaluate retrieval quality — precision, recall, NDCG"
+        - "Implement hybrid search — semantic and keyword"
+        - "Monitor and improve RAG system accuracy over time"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "aiml_agent"
+
+    - id: AI009
+      name: "Prompt Engineer"
+      description: "Designs prompts and interaction patterns that get reliable, high-quality outputs from LLMs"
+      responsibilities:
+        - "Design system prompts for consistent LLM behavior"
+        - "Implement few-shot examples and chain-of-thought patterns"
+        - "Evaluate prompt effectiveness with structured experiments"
+        - "Build prompt libraries and versioning systems"
+        - "Optimize prompts for cost, latency, and quality"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "aiml_agent"
+
+    - id: AI010
+      name: "AI Agent Engineer"
+      description: "Builds autonomous AI agents that plan and take actions to complete tasks"
+      responsibilities:
+        - "Design multi-agent architectures and orchestration"
+        - "Implement tool use, function calling, and external API integration"
+        - "Build agent memory and state management systems"
+        - "Evaluate agent reliability and failure modes"
+        - "Implement safety guardrails and human oversight mechanisms"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "aiml_agent"
+
+    - id: AI011
+      name: "MLOps Engineer"
+      description: "Builds the infrastructure and processes for reliable ML model development and deployment"
+      responsibilities:
+        - "Build ML training, evaluation, and deployment pipelines"
+        - "Manage experiment tracking and model registries"
+        - "Implement model monitoring and drift detection"
+        - "Automate model retraining and continuous evaluation"
+        - "Build ML infrastructure tooling for data science teams"
+      stage_used_in: ["deployment"]
+      mapped_agent_skill: "aiml_agent"
+
+    - id: AI012
+      name: "Model Serving Engineer"
+      description: "Builds infrastructure to serve ML models with low latency and high reliability"
+      responsibilities:
+        - "Design model serving infrastructure — Triton, TorchServe, Ray Serve"
+        - "Optimize model inference latency and throughput"
+        - "Implement model batching, caching, and request routing"
+        - "Manage model versioning and A/B testing in serving"
+        - "Monitor serving infrastructure and model performance"
+      stage_used_in: ["deployment"]
+      mapped_agent_skill: "aiml_agent"
+
+    - id: AI013
+      name: "Inference Engineer"
+      description: "Optimizes ML model inference for speed, memory, and cost efficiency"
+      responsibilities:
+        - "Apply quantization, pruning, and distillation to reduce model size"
+        - "Implement TensorRT, ONNX, or hardware-specific optimizations"
+        - "Profile inference bottlenecks and memory usage"
+        - "Benchmark inference performance across hardware targets"
+        - "Deploy optimized models to edge, mobile, or cloud"
+      stage_used_in: ["deployment"]
+      mapped_agent_skill: "aiml_agent"
+
+    - id: AI014
+      name: "Feature Store Engineer"
+      description: "Builds feature store infrastructure for ML feature management and serving"
+      responsibilities:
+        - "Design feature store architecture — online and offline stores"
+        - "Build feature pipelines from raw data to serving"
+        - "Implement feature sharing and discovery across teams"
+        - "Manage feature freshness and point-in-time correctness"
+        - "Monitor feature drift and data quality"
+      stage_used_in: ["database_design", "backend_build"]
+      mapped_agent_skill: "aiml_agent"
+
+    - id: AI015
+      name: "ML Platform Engineer"
+      description: "Builds the internal ML platform that data scientists and ML engineers use"
+      responsibilities:
+        - "Build and maintain ML workflow orchestration — Kubeflow, MLflow, Airflow"
+        - "Manage distributed training infrastructure — GPU clusters, spot instances"
+        - "Build experiment tracking and model registry systems"
+        - "Provide self-service ML tooling for data science teams"
+        - "Define ML platform standards and best practices"
+      stage_used_in: ["deployment"]
+      mapped_agent_skill: "aiml_agent"
+
+    - id: AI016
+      name: "Research Engineer"
+      description: "Bridges research and production — implements novel ML research in usable systems"
+      responsibilities:
+        - "Implement and reproduce published research papers"
+        - "Adapt research prototypes into production systems"
+        - "Design experiments to validate research hypotheses"
+        - "Collaborate with researchers to productionize innovations"
+        - "Publish research findings and engineering insights"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "aiml_agent"
+
+    - id: AI017
+      name: "Applied Scientist"
+      description: "Applies ML and statistical methods to solve real business problems"
+      responsibilities:
+        - "Define ML problem formulations from business requirements"
+        - "Design experiments and measure business impact"
+        - "Build and evaluate ML models for production deployment"
+        - "Communicate findings to non-technical stakeholders"
+        - "Identify opportunities to apply ML to new problem domains"
+      stage_used_in: ["planning", "backend_build"]
+      mapped_agent_skill: "aiml_agent"
+
+    - id: AI018
+      name: "Recommendation Systems Engineer"
+      description: "Builds systems that personalize content, products, or actions for users"
+      responsibilities:
+        - "Design collaborative filtering and content-based recommendation systems"
+        - "Build real-time and batch recommendation pipelines"
+        - "Implement A/B testing and online evaluation for recommendations"
+        - "Handle cold start problems and data sparsity"
+        - "Monitor recommendation diversity, coverage, and business metrics"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "aiml_agent"
+
+    - id: AI019
+      name: "Search/Relevance Engineer"
+      description: "Builds search systems that return the most relevant results for user queries"
+      responsibilities:
+        - "Design search architectures using Elasticsearch, Solr, or custom systems"
+        - "Implement ranking models and relevance tuning"
+        - "Build query understanding and expansion systems"
+        - "Evaluate search quality using NDCG, MRR, and user metrics"
+        - "Handle multi-language and fuzzy search requirements"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "aiml_agent"
+
+    - id: AI020
+      name: "Forecasting Engineer"
+      description: "Builds systems that predict future values of business metrics"
+      responsibilities:
+        - "Design and implement time series forecasting models"
+        - "Handle seasonal patterns, trends, and anomalies"
+        - "Build forecasting pipelines that run automatically"
+        - "Evaluate forecast accuracy and uncertainty"
+        - "Deliver forecasts to business stakeholders and downstream systems"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "aiml_agent"
+
+    - id: AI021
+      name: "Optimization Engineer"
+      description: "Builds systems that find optimal solutions to constrained business problems"
+      responsibilities:
+        - "Model business problems as optimization problems"
+        - "Implement solvers for linear, integer, and combinatorial optimization"
+        - "Build real-time optimization systems for pricing, routing, and scheduling"
+        - "Evaluate optimization quality and business impact"
+        - "Handle constraint changes and real-world infeasibility"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "aiml_agent"
+
+    - id: AI022
+      name: "AI Safety Engineer"
+      description: "Builds systems and processes to ensure AI behaves safely and as intended"
+      responsibilities:
+        - "Implement content safety filters and moderation systems"
+        - "Design red-teaming and adversarial evaluation pipelines"
+        - "Build human oversight mechanisms for AI decisions"
+        - "Evaluate AI systems for bias, fairness, and robustness"
+        - "Define and monitor AI safety metrics in production"
+      stage_used_in: ["testing", "final_review"]
+      mapped_agent_skill: "testing_agent"
+
+    - id: AI023
+      name: "Responsible AI Engineer"
+      description: "Ensures AI systems are fair, accountable, transparent, and ethical"
+      responsibilities:
+        - "Conduct fairness audits across demographic groups"
+        - "Implement model explainability and interpretability tools"
+        - "Build transparency reports and model cards"
+        - "Design processes for ethical AI review"
+        - "Ensure compliance with AI regulation and guidelines"
+      stage_used_in: ["testing", "final_review"]
+      mapped_agent_skill: "testing_agent"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CATEGORY 5 — Quality and Testing
+# ─────────────────────────────────────────────────────────────────────────────
+
+category_5:
+  name: "Quality and Testing"
+  agent_skill: "testing_agent"
+  roles:
+    - id: QA001
+      name: "QA Engineer"
+      description: "Ensures software quality through testing, validation, and quality processes"
+      responsibilities:
+        - "Design and execute test plans for new features"
+        - "Identify and document bugs with clear reproduction steps"
+        - "Verify fixes and confirm feature behavior meets requirements"
+        - "Maintain test documentation and traceability"
+        - "Participate in requirement reviews to identify testability issues"
+      stage_used_in: ["testing"]
+      mapped_agent_skill: "testing_agent"
+
+    - id: QA002
+      name: "SDET"
+      description: "Software Development Engineer in Test — writes code to test software"
+      responsibilities:
+        - "Build automated test frameworks and infrastructure"
+        - "Write test code at unit, integration, and end-to-end levels"
+        - "Maintain test suites and reduce flakiness"
+        - "Integrate test automation into CI/CD pipelines"
+        - "Define testing standards and best practices"
+      stage_used_in: ["testing"]
+      mapped_agent_skill: "testing_agent"
+
+    - id: QA003
+      name: "Test Automation Engineer"
+      description: "Builds automated tests that validate software behavior reliably"
+      responsibilities:
+        - "Write automated tests using Playwright, Selenium, Cypress, or similar"
+        - "Build API test suites using Postman, REST-assured, or pytest"
+        - "Maintain test data management and environment setup"
+        - "Analyze test results and investigate failures"
+        - "Improve test coverage and automation ROI"
+      stage_used_in: ["testing"]
+      mapped_agent_skill: "testing_agent"
+
+    - id: QA004
+      name: "Manual Test Engineer"
+      description: "Validates software behavior through structured manual testing"
+      responsibilities:
+        - "Execute manual test cases for complex user scenarios"
+        - "Perform exploratory testing to find unexpected issues"
+        - "Test edge cases that automated tests cannot cover"
+        - "Validate UI behavior across browsers, devices, and screen sizes"
+        - "Write detailed bug reports with reproduction steps"
+      stage_used_in: ["testing"]
+      mapped_agent_skill: "testing_agent"
+
+    - id: QA005
+      name: "Performance Test Engineer"
+      description: "Tests system performance under load and finds bottlenecks before production"
+      responsibilities:
+        - "Design performance test scenarios for realistic load profiles"
+        - "Build load tests using k6, Locust, JMeter, or Gatling"
+        - "Identify performance bottlenecks from test results"
+        - "Define performance benchmarks and acceptance criteria"
+        - "Regression-test performance across releases"
+      stage_used_in: ["testing"]
+      mapped_agent_skill: "testing_agent"
+
+    - id: QA006
+      name: "Load Testing Engineer"
+      description: "Validates system behavior under expected and peak load conditions"
+      responsibilities:
+        - "Model realistic user traffic patterns for load tests"
+        - "Run sustained load, spike, and soak tests"
+        - "Identify system degradation thresholds"
+        - "Validate autoscaling behavior under load"
+        - "Report load test results with actionable recommendations"
+      stage_used_in: ["testing"]
+      mapped_agent_skill: "testing_agent"
+
+    - id: QA007
+      name: "Security Testing Engineer"
+      description: "Tests systems for security vulnerabilities through structured testing"
+      responsibilities:
+        - "Run OWASP Top 10 vulnerability scans"
+        - "Test authentication, authorization, and session management"
+        - "Conduct SQL injection, XSS, and CSRF testing"
+        - "Run dependency vulnerability scans"
+        - "Document security findings with severity ratings"
+      stage_used_in: ["testing"]
+      mapped_agent_skill: "testing_agent"
+
+    - id: QA008
+      name: "Regression Test Engineer"
+      description: "Ensures that new changes do not break existing functionality"
+      responsibilities:
+        - "Maintain and execute regression test suites"
+        - "Triage regression failures and identify root causes"
+        - "Update test suites as features evolve"
+        - "Define regression testing strategy for release cycles"
+        - "Measure regression test coverage and effectiveness"
+      stage_used_in: ["testing"]
+      mapped_agent_skill: "testing_agent"
+
+    - id: QA009
+      name: "Validation Engineer"
+      description: "Validates that systems meet specified requirements and standards"
+      responsibilities:
+        - "Map test cases to requirements and acceptance criteria"
+        - "Validate system behavior against specifications"
+        - "Document validation evidence for compliance purposes"
+        - "Coordinate user acceptance testing"
+        - "Sign off on system readiness for production"
+      stage_used_in: ["testing", "final_review"]
+      mapped_agent_skill: "testing_agent"
+
+    - id: QA010
+      name: "Automation Engineer"
+      description: "Builds automation systems that reduce manual effort across the engineering workflow"
+      responsibilities:
+        - "Identify manual processes that can be automated"
+        - "Build automation scripts and workflows"
+        - "Maintain and extend existing automation frameworks"
+        - "Document automation systems for team use"
+        - "Measure automation ROI and coverage"
+      stage_used_in: ["testing", "deployment"]
+      mapped_agent_skill: "testing_agent"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CATEGORY 6 — Security Engineering
+# ─────────────────────────────────────────────────────────────────────────────
+
+category_6:
+  name: "Security Engineering"
+  agent_skill: "security_agent"
+  roles:
+    - id: SEC001
+      name: "Security Engineer"
+      description: "Designs and implements security controls across software and infrastructure"
+      responsibilities:
+        - "Review architecture and code for security vulnerabilities"
+        - "Implement authentication, authorization, and encryption systems"
+        - "Manage security tooling — SAST, DAST, dependency scanning"
+        - "Respond to security incidents and vulnerabilities"
+        - "Define and enforce security standards across engineering"
+      stage_used_in: ["architecture", "testing", "deployment"]
+      mapped_agent_skill: "security_agent"
+
+    - id: SEC002
+      name: "Application Security Engineer"
+      description: "Secures software applications at the code and design level"
+      responsibilities:
+        - "Conduct secure code reviews"
+        - "Run application penetration testing"
+        - "Implement input validation and output encoding standards"
+        - "Manage SAST tooling and vulnerability triage"
+        - "Train developers on secure coding practices"
+      stage_used_in: ["backend_build", "testing"]
+      mapped_agent_skill: "security_agent"
+
+    - id: SEC003
+      name: "Product Security Engineer"
+      description: "Embeds security into the product development lifecycle"
+      responsibilities:
+        - "Partner with product teams to define security requirements"
+        - "Conduct threat modeling for new features"
+        - "Review product designs for security risks"
+        - "Build security into the product development process"
+        - "Manage bug bounty programs and responsible disclosure"
+      stage_used_in: ["planning", "architecture"]
+      mapped_agent_skill: "security_agent"
+
+    - id: SEC004
+      name: "Cloud Security Engineer"
+      description: "Secures cloud infrastructure, services, and deployment pipelines"
+      responsibilities:
+        - "Implement cloud security controls — IAM, network security, encryption"
+        - "Monitor cloud environments for misconfigurations and threats"
+        - "Enforce cloud security policies using CSPM tools"
+        - "Secure CI/CD pipelines and supply chains"
+        - "Manage cloud compliance and audit requirements"
+      stage_used_in: ["deployment"]
+      mapped_agent_skill: "security_agent"
+
+    - id: SEC005
+      name: "DevSecOps Engineer"
+      description: "Integrates security into DevOps processes and pipelines"
+      responsibilities:
+        - "Embed security checks into CI/CD pipelines"
+        - "Implement automated SAST, DAST, and SCA scanning"
+        - "Manage secrets management in deployment pipelines"
+        - "Build security dashboards for engineering teams"
+        - "Shift security left into the development process"
+      stage_used_in: ["deployment"]
+      mapped_agent_skill: "security_agent"
+
+    - id: SEC006
+      name: "Infrastructure Security Engineer"
+      description: "Secures compute, network, and storage infrastructure"
+      responsibilities:
+        - "Harden server and container configurations"
+        - "Implement network segmentation and firewall rules"
+        - "Manage endpoint detection and response"
+        - "Monitor infrastructure for intrusions and anomalies"
+        - "Manage vulnerability scanning and patch management"
+      stage_used_in: ["deployment"]
+      mapped_agent_skill: "security_agent"
+
+    - id: SEC007
+      name: "Network Security Engineer"
+      description: "Secures network infrastructure and monitors for network-based threats"
+      responsibilities:
+        - "Design and manage network security architecture"
+        - "Implement IDS/IPS and network monitoring"
+        - "Manage VPN, zero-trust network access, and segmentation"
+        - "Investigate network-based security incidents"
+        - "Enforce network security policies and standards"
+      stage_used_in: ["deployment"]
+      mapped_agent_skill: "security_agent"
+
+    - id: SEC008
+      name: "Detection Engineer"
+      description: "Builds detection rules and systems that identify security threats"
+      responsibilities:
+        - "Write SIEM detection rules for known threat patterns"
+        - "Build behavioral analytics for anomaly detection"
+        - "Tune detection rules to reduce false positives"
+        - "Validate detection coverage against threat models"
+        - "Document detection logic for SOC analyst use"
+      stage_used_in: ["deployment", "final_review"]
+      mapped_agent_skill: "security_agent"
+
+    - id: SEC009
+      name: "Incident Response Engineer"
+      description: "Leads and supports response to security incidents"
+      responsibilities:
+        - "Triage and investigate security alerts and incidents"
+        - "Contain, eradicate, and recover from security incidents"
+        - "Document incident timelines and findings"
+        - "Conduct post-incident reviews and drive improvements"
+        - "Build and maintain incident response playbooks"
+      stage_used_in: ["deployment", "final_review"]
+      mapped_agent_skill: "security_agent"
+
+    - id: SEC010
+      name: "Threat Intelligence Engineer"
+      description: "Collects and applies threat intelligence to improve security posture"
+      responsibilities:
+        - "Monitor threat intelligence feeds and reports"
+        - "Produce threat intelligence reports for engineering teams"
+        - "Translate threat intelligence into detection and mitigation actions"
+        - "Track threat actor TTPs relevant to the organization"
+        - "Collaborate with incident response on active threats"
+      stage_used_in: ["final_review"]
+      mapped_agent_skill: "security_agent"
+
+    - id: SEC011
+      name: "Penetration Tester"
+      description: "Tests systems by simulating real attacker techniques to find vulnerabilities"
+      responsibilities:
+        - "Conduct authorized penetration tests on applications and infrastructure"
+        - "Simulate real attacker techniques using offensive security tools"
+        - "Document findings with severity ratings and reproduction steps"
+        - "Verify fixes after vulnerabilities are remediated"
+        - "Conduct social engineering and phishing simulations"
+      stage_used_in: ["testing"]
+      mapped_agent_skill: "security_agent"
+
+    - id: SEC012
+      name: "Red Team Engineer"
+      description: "Simulates sophisticated adversaries to test defensive capabilities"
+      responsibilities:
+        - "Conduct full-scope red team operations"
+        - "Develop custom offensive tools and exploits"
+        - "Test detection and response capabilities"
+        - "Simulate APT-style attack campaigns"
+        - "Collaborate with blue teams to improve defenses"
+      stage_used_in: ["testing"]
+      mapped_agent_skill: "security_agent"
+
+    - id: SEC013
+      name: "Blue Team Engineer"
+      description: "Defends systems and improves detection and response capabilities"
+      responsibilities:
+        - "Monitor security systems and investigate alerts"
+        - "Improve detection coverage and reduce alert fatigue"
+        - "Build and maintain security operations tooling"
+        - "Respond to red team findings with defensive improvements"
+        - "Train SOC analysts on investigation techniques"
+      stage_used_in: ["testing", "deployment"]
+      mapped_agent_skill: "security_agent"
+
+    - id: SEC014
+      name: "Privacy Engineer"
+      description: "Ensures systems handle personal data in compliance with privacy regulations"
+      responsibilities:
+        - "Implement privacy by design in new systems"
+        - "Conduct privacy impact assessments"
+        - "Build data minimization and anonymization systems"
+        - "Implement consent management and data subject rights"
+        - "Ensure GDPR, CCPA, and other regulatory compliance"
+      stage_used_in: ["architecture", "deployment"]
+      mapped_agent_skill: "security_agent"
+
+    - id: SEC015
+      name: "Compliance Engineer"
+      description: "Implements technical controls to meet regulatory and compliance requirements"
+      responsibilities:
+        - "Map compliance requirements to technical controls"
+        - "Implement audit logging and evidence collection"
+        - "Manage compliance tooling and reporting"
+        - "Prepare for SOC 2, ISO 27001, and other audits"
+        - "Track compliance posture and remediate gaps"
+      stage_used_in: ["deployment", "final_review"]
+      mapped_agent_skill: "security_agent"
+
+    - id: SEC016
+      name: "Cryptography Engineer"
+      description: "Designs and implements cryptographic systems for data security"
+      responsibilities:
+        - "Design encryption and key management architectures"
+        - "Implement cryptographic protocols correctly"
+        - "Review cryptographic implementations for vulnerabilities"
+        - "Manage PKI infrastructure and certificate lifecycle"
+        - "Stay current with cryptographic standards and vulnerabilities"
+      stage_used_in: ["architecture", "backend_build"]
+      mapped_agent_skill: "security_agent"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CATEGORY 7 — Developer Experience and Tooling
+# ─────────────────────────────────────────────────────────────────────────────
+
+category_7:
+  name: "Developer Experience and Tooling"
+  agent_skill: "review_agent | loop_engineer"
+  roles:
+    - id: DX001
+      name: "Developer Experience Engineer"
+      description: "Improves the productivity, tooling, and experience of software engineers"
+      responsibilities:
+        - "Identify and reduce developer friction points"
+        - "Build internal tooling that improves developer productivity"
+        - "Maintain and improve local development environments"
+        - "Measure developer experience through surveys and metrics"
+        - "Advocate for developer needs within the organization"
+      stage_used_in: ["planning", "final_review"]
+      mapped_agent_skill: "review_agent"
+
+    - id: DX002
+      name: "Developer Productivity Engineer"
+      description: "Builds systems and processes that make engineers more productive"
+      responsibilities:
+        - "Analyze and improve engineering metrics — cycle time, PR throughput"
+        - "Build tooling that reduces manual and repetitive work"
+        - "Optimize CI/CD speed and reliability"
+        - "Identify bottlenecks in the development workflow"
+        - "Run developer productivity programs and initiatives"
+      stage_used_in: ["deployment", "final_review"]
+      mapped_agent_skill: "review_agent"
+
+    - id: DX003
+      name: "Internal Tools Engineer"
+      description: "Builds internal software tools used by employees and engineering teams"
+      responsibilities:
+        - "Build and maintain internal dashboards and admin tools"
+        - "Integrate internal systems and workflows"
+        - "Support non-technical users with self-service tooling"
+        - "Reduce manual operations through internal automation"
+        - "Maintain internal tool reliability and performance"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: DX004
+      name: "Tooling Engineer"
+      description: "Builds engineering tools that improve development velocity and quality"
+      responsibilities:
+        - "Build code generators, scaffolding tools, and CLIs"
+        - "Maintain and extend existing engineering toolchains"
+        - "Create tooling that enforces coding standards"
+        - "Build plugins and extensions for developer tools"
+        - "Document tooling for adoption across engineering"
+      stage_used_in: ["planning", "final_review"]
+      mapped_agent_skill: "review_agent"
+
+    - id: DX005
+      name: "Documentation Engineer"
+      description: "Creates and maintains technical documentation for developers and users"
+      responsibilities:
+        - "Write clear API documentation and developer guides"
+        - "Build and maintain documentation infrastructure"
+        - "Create tutorials, how-tos, and reference material"
+        - "Keep documentation synchronized with product changes"
+        - "Measure documentation quality through user feedback"
+      stage_used_in: ["final_review"]
+      mapped_agent_skill: "review_agent"
+
+    - id: DX006
+      name: "Developer Advocate / Developer Relations Engineer"
+      description: "Bridges the company and developer community — educates, builds trust, and collects feedback"
+      responsibilities:
+        - "Create technical content — blog posts, videos, talks"
+        - "Build sample applications and open source contributions"
+        - "Gather developer feedback and bring it to product teams"
+        - "Represent the company at conferences and community events"
+        - "Build and maintain developer community programs"
+      stage_used_in: ["final_review"]
+      mapped_agent_skill: "review_agent"
+
+    - id: DX007
+      name: "Framework Engineer"
+      description: "Builds and maintains software frameworks used by many engineering teams"
+      responsibilities:
+        - "Design framework APIs that are easy to use correctly"
+        - "Maintain backward compatibility across framework versions"
+        - "Write extensive documentation and migration guides"
+        - "Support framework users through issues and PRs"
+        - "Benchmark and optimize framework performance"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: DX008
+      name: "Design Systems Engineer"
+      description: "Builds and maintains the design system — the shared component library and visual language"
+      responsibilities:
+        - "Build reusable UI components with clear APIs"
+        - "Maintain design token systems and theming"
+        - "Enforce design consistency across product surfaces"
+        - "Document component usage and accessibility requirements"
+        - "Collaborate with designers to evolve the design system"
+      stage_used_in: ["frontend_build"]
+      mapped_agent_skill: "frontend_agent"
+
+    - id: DX009
+      name: "Accessibility Engineer"
+      description: "Ensures software is usable by people with disabilities"
+      responsibilities:
+        - "Implement WCAG 2.1 AA compliance across UI components"
+        - "Conduct accessibility audits and remediate findings"
+        - "Test with screen readers, keyboard navigation, and assistive tech"
+        - "Train engineers on accessible development practices"
+        - "Define accessibility standards and testing processes"
+      stage_used_in: ["frontend_build", "testing"]
+      mapped_agent_skill: "frontend_agent"
+
+    - id: DX010
+      name: "Localization / Internationalization Engineer"
+      description: "Enables software to work across languages, regions, and cultures"
+      responsibilities:
+        - "Implement i18n infrastructure for text, dates, numbers, and currencies"
+        - "Build localization pipelines for content translation"
+        - "Handle right-to-left language support"
+        - "Test locale-specific behavior across supported regions"
+        - "Manage translation workflows and tooling"
+      stage_used_in: ["frontend_build"]
+      mapped_agent_skill: "frontend_agent"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CATEGORY 8 — Enterprise, Customer, and Field Engineering
+# ─────────────────────────────────────────────────────────────────────────────
+
+category_8:
+  name: "Enterprise, Customer, and Field Engineering"
+  agent_skill: "planning_agent | review_agent"
+  roles:
+    - id: ENT001
+      name: "Solutions Engineer"
+      description: "Works with customers to understand needs and design technical solutions"
+      responsibilities:
+        - "Understand customer technical requirements and constraints"
+        - "Design solution architectures that meet customer needs"
+        - "Build technical proof-of-concepts for sales opportunities"
+        - "Present technical solutions to customer stakeholders"
+        - "Support customers through technical onboarding"
+      stage_used_in: ["planning", "architecture"]
+      mapped_agent_skill: "planning_agent"
+
+    - id: ENT002
+      name: "Solutions Architect"
+      description: "Designs comprehensive technical architectures for customer solutions"
+      responsibilities:
+        - "Design end-to-end technical architectures for complex customer problems"
+        - "Evaluate technology choices and tradeoffs for customer environments"
+        - "Create architecture documentation and decision records"
+        - "Lead technical discovery workshops with customers"
+        - "Ensure solutions meet security, compliance, and scalability requirements"
+      stage_used_in: ["planning", "architecture"]
+      mapped_agent_skill: "planning_agent"
+
+    - id: ENT003
+      name: "Sales Engineer"
+      description: "Supports the sales process with technical expertise and product demonstrations"
+      responsibilities:
+        - "Conduct technical product demonstrations"
+        - "Answer technical questions during the sales cycle"
+        - "Build custom demos and proof-of-concepts"
+        - "Write technical responses to RFPs and RFIs"
+        - "Bridge customer technical requirements with product capabilities"
+      stage_used_in: ["planning"]
+      mapped_agent_skill: "planning_agent"
+
+    - id: ENT004
+      name: "Forward Deployed Engineer"
+      description: "Works directly at customer sites to deploy, integrate, and customize solutions"
+      responsibilities:
+        - "Deploy and configure software at customer sites"
+        - "Build customer-specific integrations and customizations"
+        - "Debug complex customer environment issues"
+        - "Train customer teams on product use"
+        - "Collect customer feedback and surface product gaps"
+      stage_used_in: ["deployment", "integration"]
+      mapped_agent_skill: "devops_agent"
+
+    - id: ENT005
+      name: "Implementation Engineer"
+      description: "Implements and configures software solutions for customers"
+      responsibilities:
+        - "Lead technical onboarding and implementation projects"
+        - "Configure and customize software for customer workflows"
+        - "Migrate customer data from legacy systems"
+        - "Train customer administrators and power users"
+        - "Document customer configurations and customizations"
+      stage_used_in: ["deployment", "integration"]
+      mapped_agent_skill: "devops_agent"
+
+    - id: ENT006
+      name: "Professional Services Engineer"
+      description: "Delivers paid technical services to customers — consulting, integration, and custom development"
+      responsibilities:
+        - "Deliver technical consulting engagements"
+        - "Build custom integrations and extensions for customers"
+        - "Lead technical implementation projects"
+        - "Write statements of work and technical specifications"
+        - "Manage customer expectations and project delivery"
+      stage_used_in: ["planning", "backend_build"]
+      mapped_agent_skill: "planning_agent"
+
+    - id: ENT007
+      name: "Customer Engineer"
+      description: "Partners with customers on technical adoption and success"
+      responsibilities:
+        - "Build technical relationships with key customer accounts"
+        - "Review customer architectures and provide guidance"
+        - "Identify and escalate customer technical blockers"
+        - "Run technical workshops and enablement sessions"
+        - "Advocate for customer needs internally"
+      stage_used_in: ["planning", "final_review"]
+      mapped_agent_skill: "review_agent"
+
+    - id: ENT008
+      name: "Support Engineer"
+      description: "Resolves customer technical issues and bugs"
+      responsibilities:
+        - "Diagnose and resolve customer technical issues"
+        - "Reproduce customer-reported bugs and escalate to engineering"
+        - "Write knowledge base articles and troubleshooting guides"
+        - "Manage customer support cases to resolution"
+        - "Identify patterns in customer issues to drive product improvements"
+      stage_used_in: ["testing", "final_review"]
+      mapped_agent_skill: "testing_agent"
+
+    - id: ENT009
+      name: "Escalation Engineer"
+      description: "Handles the most complex and critical customer technical issues"
+      responsibilities:
+        - "Take ownership of high-severity and escalated support cases"
+        - "Deep-dive into complex technical issues requiring engineering collaboration"
+        - "Manage customer expectations during critical issue resolution"
+        - "Drive cross-functional resolution of systemic issues"
+        - "Document escalation patterns to prevent recurrence"
+      stage_used_in: ["testing", "final_review"]
+      mapped_agent_skill: "testing_agent"
+
+    - id: ENT010
+      name: "Partner Engineer"
+      description: "Enables technology partners to build integrations and solutions on top of the platform"
+      responsibilities:
+        - "Onboard and enable technology partners technically"
+        - "Review partner integration architectures"
+        - "Build partner-facing APIs, SDKs, and documentation"
+        - "Support partners through integration development"
+        - "Certify partner integrations for marketplace listing"
+      stage_used_in: ["planning", "backend_build"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: ENT011
+      name: "Field Application Engineer"
+      description: "Provides technical pre-sales and post-sales support in the field"
+      responsibilities:
+        - "Support field sales teams with technical expertise"
+        - "Conduct on-site technical demonstrations and evaluations"
+        - "Assist customers with product evaluation and selection"
+        - "Provide technical training to customer engineers"
+        - "Collect field feedback to inform product roadmap"
+      stage_used_in: ["planning"]
+      mapped_agent_skill: "planning_agent"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CATEGORY 9 — Architecture and Engineering Leadership
+# ─────────────────────────────────────────────────────────────────────────────
+
+category_9:
+  name: "Architecture and Engineering Leadership"
+  agent_skill: "review_agent | loop_engineer | planning_agent"
+  roles:
+    - id: ARCH001
+      name: "Tech Lead"
+      description: "Leads the technical direction of a team — mentors engineers and makes key technical decisions"
+      responsibilities:
+        - "Set technical direction and standards for the team"
+        - "Review and approve architectural decisions"
+        - "Mentor engineers and support their growth"
+        - "Break down complex technical work into executable tasks"
+        - "Manage technical debt and quality standards"
+      stage_used_in: ["planning", "architecture", "final_review"]
+      mapped_agent_skill: "loop_engineer"
+
+    - id: ARCH002
+      name: "Team Lead Engineer"
+      description: "Combines technical leadership with people management for a small engineering team"
+      responsibilities:
+        - "Lead team delivery and execution"
+        - "Conduct 1:1s and support engineer development"
+        - "Manage team priorities and dependencies"
+        - "Represent team technical decisions to stakeholders"
+        - "Maintain team engineering standards and culture"
+      stage_used_in: ["planning", "final_review"]
+      mapped_agent_skill: "loop_engineer"
+
+    - id: ARCH003
+      name: "Software Architect"
+      description: "Designs system-level architectures and makes foundational technical decisions"
+      responsibilities:
+        - "Design system and application architectures"
+        - "Define technical standards and architectural patterns"
+        - "Review designs and code for architectural compliance"
+        - "Evaluate technology choices for new systems"
+        - "Document architectural decisions and rationale"
+      stage_used_in: ["planning", "architecture", "final_review"]
+      mapped_agent_skill: "review_agent"
+
+    - id: ARCH004
+      name: "System Architect"
+      description: "Designs the overall system structure across multiple components and services"
+      responsibilities:
+        - "Design distributed system architectures"
+        - "Define service boundaries and interaction patterns"
+        - "Evaluate system-level tradeoffs — consistency vs availability"
+        - "Lead system design reviews and architecture discussions"
+        - "Produce system architecture documentation"
+      stage_used_in: ["planning", "architecture"]
+      mapped_agent_skill: "review_agent"
+
+    - id: ARCH005
+      name: "Cloud Architect"
+      description: "Designs cloud-native architectures across compute, storage, network, and services"
+      responsibilities:
+        - "Design cloud reference architectures for business requirements"
+        - "Define cloud governance, security, and cost frameworks"
+        - "Evaluate cloud services and make platform decisions"
+        - "Lead cloud migration and modernization strategies"
+        - "Review cloud architectures for reliability and cost"
+      stage_used_in: ["planning", "architecture"]
+      mapped_agent_skill: "review_agent"
+
+    - id: ARCH006
+      name: "Data Architect"
+      description: "Designs data systems, models, and pipelines that serve the organization"
+      responsibilities:
+        - "Design enterprise data models and schemas"
+        - "Define data architecture standards and patterns"
+        - "Evaluate data platform technology choices"
+        - "Lead data architecture reviews"
+        - "Ensure data architecture supports analytics and ML needs"
+      stage_used_in: ["planning", "database_design"]
+      mapped_agent_skill: "database_agent"
+
+    - id: ARCH007
+      name: "Security Architect"
+      description: "Designs security architectures for systems, products, and organizations"
+      responsibilities:
+        - "Design security architectures and control frameworks"
+        - "Conduct threat modeling for new systems and features"
+        - "Define security standards and architecture guidelines"
+        - "Review system designs for security compliance"
+        - "Lead security architecture decisions across engineering"
+      stage_used_in: ["planning", "architecture"]
+      mapped_agent_skill: "security_agent"
+
+    - id: ARCH008
+      name: "ML Architect"
+      description: "Designs ML system architectures from data to production"
+      responsibilities:
+        - "Design end-to-end ML system architectures"
+        - "Define ML platform and infrastructure standards"
+        - "Evaluate ML framework and tooling choices"
+        - "Review ML system designs for scalability and reliability"
+        - "Lead ML architecture decisions across the organization"
+      stage_used_in: ["planning", "architecture"]
+      mapped_agent_skill: "aiml_agent"
+
+    - id: ARCH009
+      name: "Staff Engineer"
+      description: "Senior individual contributor who drives technical direction across teams"
+      responsibilities:
+        - "Identify and solve cross-team technical problems"
+        - "Define technical strategies and roadmaps"
+        - "Mentor senior engineers across the organization"
+        - "Lead the most complex and ambiguous technical work"
+        - "Represent engineering in cross-functional decisions"
+      stage_used_in: ["planning", "architecture", "final_review"]
+      mapped_agent_skill: "review_agent"
+
+    - id: ARCH010
+      name: "Principal Engineer"
+      description: "Most senior individual contributor — defines technical direction for the organization"
+      responsibilities:
+        - "Set technical vision and multi-year technical strategy"
+        - "Solve the hardest technical problems in the organization"
+        - "Influence technical direction across multiple teams and domains"
+        - "Build consensus on major technical decisions"
+        - "Represent the organization externally through publications and talks"
+      stage_used_in: ["planning", "final_review"]
+      mapped_agent_skill: "review_agent"
+
+    - id: ARCH011
+      name: "Distinguished Engineer"
+      description: "Industry-recognized technical leader who shapes engineering at the company and field level"
+      responsibilities:
+        - "Define organization-wide technical principles"
+        - "Drive industry-level technical innovations"
+        - "Build the company's technical reputation externally"
+        - "Mentor the next generation of technical leaders"
+        - "Advise on company-level technical strategy"
+      stage_used_in: ["planning", "final_review"]
+      mapped_agent_skill: "review_agent"
+
+    - id: ARCH012
+      name: "Engineering Manager"
+      description: "Manages a team of engineers — focuses on people, process, and delivery"
+      responsibilities:
+        - "Hire, develop, and retain engineering talent"
+        - "Manage team delivery, priorities, and dependencies"
+        - "Set team goals and track progress"
+        - "Remove blockers and resolve team issues"
+        - "Represent team interests to stakeholders"
+      stage_used_in: ["planning", "final_review"]
+      mapped_agent_skill: "loop_engineer"
+
+    - id: ARCH013
+      name: "Director of Engineering"
+      description: "Leads multiple engineering teams toward product and business goals"
+      responsibilities:
+        - "Define engineering strategy and roadmap"
+        - "Manage engineering managers and senior engineers"
+        - "Align engineering with product and business priorities"
+        - "Build engineering culture and standards"
+        - "Manage engineering budget and resource allocation"
+      stage_used_in: ["planning", "final_review"]
+      mapped_agent_skill: "loop_engineer"
+
+    - id: ARCH014
+      name: "VP of Engineering"
+      description: "Leads the entire engineering organization toward company objectives"
+      responsibilities:
+        - "Set engineering vision and organizational structure"
+        - "Manage director-level engineering leaders"
+        - "Align engineering with company strategy and investor expectations"
+        - "Define engineering hiring, culture, and processes"
+        - "Represent engineering at the executive and board level"
+      stage_used_in: ["planning", "final_review"]
+      mapped_agent_skill: "loop_engineer"
+
+    - id: ARCH015
+      name: "CTO"
+      description: "Chief Technology Officer — defines the company's technology vision and strategy"
+      responsibilities:
+        - "Define company technology vision and multi-year strategy"
+        - "Lead all engineering and technology functions"
+        - "Represent technology externally to investors, partners, and press"
+        - "Make foundational technology platform decisions"
+        - "Build and maintain the company's technical talent and culture"
+      stage_used_in: ["planning", "final_review"]
+      mapped_agent_skill: "loop_engineer"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CATEGORY 10 — Specialized Software Engineering
+# ─────────────────────────────────────────────────────────────────────────────
+
+category_10:
+  name: "Specialized Software Engineering"
+  agent_skill: "backend_agent | aiml_agent | frontend_agent"
+  roles:
+    - id: SPEC001
+      name: "Payments Engineer"
+      description: "Builds payment processing systems, checkout flows, and financial integrations"
+      responsibilities:
+        - "Integrate payment processors — Stripe, Braintree, Adyen"
+        - "Implement secure checkout flows and PCI compliance"
+        - "Build subscription and billing management systems"
+        - "Handle payment failures, retries, and reconciliation"
+        - "Monitor payment success rates and fraud signals"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: SPEC002
+      name: "FinTech Engineer"
+      description: "Builds financial technology products — banking, lending, trading, and wealth management"
+      responsibilities:
+        - "Build financial calculation and modeling engines"
+        - "Implement regulatory compliance requirements — KYC, AML"
+        - "Design financial data models with auditability"
+        - "Build real-time financial data processing systems"
+        - "Ensure data accuracy and consistency in financial systems"
+      stage_used_in: ["backend_build", "database_design"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: SPEC003
+      name: "Blockchain Engineer"
+      description: "Builds systems on blockchain and distributed ledger technology"
+      responsibilities:
+        - "Design and implement blockchain architecture"
+        - "Build applications on Ethereum, Solana, or other chains"
+        - "Integrate with blockchain nodes and APIs"
+        - "Handle wallet management and transaction signing"
+        - "Monitor on-chain events and build indexers"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: SPEC004
+      name: "Smart Contract Engineer"
+      description: "Writes and audits smart contracts for blockchain platforms"
+      responsibilities:
+        - "Write smart contracts in Solidity, Rust, or Move"
+        - "Audit contracts for security vulnerabilities"
+        - "Deploy and verify contracts on blockchain networks"
+        - "Build testing frameworks for smart contract behavior"
+        - "Optimize contract gas costs"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: SPEC005
+      name: "Robotics Software Engineer"
+      description: "Builds software for robotic systems — perception, planning, and control"
+      responsibilities:
+        - "Build robot perception systems — computer vision, lidar, sensors"
+        - "Implement motion planning and control algorithms"
+        - "Develop ROS-based robot applications"
+        - "Test software on physical robot hardware"
+        - "Debug and tune robot behavior in real environments"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "aiml_agent"
+
+    - id: SPEC006
+      name: "Autonomous Vehicle Engineer"
+      description: "Builds software for self-driving and autonomous vehicle systems"
+      responsibilities:
+        - "Build perception, prediction, and planning software for autonomous vehicles"
+        - "Implement sensor fusion from lidar, radar, and cameras"
+        - "Develop simulation environments for testing"
+        - "Validate autonomous behavior in edge cases"
+        - "Build real-time systems with safety-critical timing requirements"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "aiml_agent"
+
+    - id: SPEC007
+      name: "Simulation Engineer"
+      description: "Builds simulation environments for testing and training AI and robotic systems"
+      responsibilities:
+        - "Build physics-accurate simulation environments"
+        - "Generate synthetic training data for ML systems"
+        - "Validate real-world behavior through simulation"
+        - "Optimize simulation performance and fidelity"
+        - "Build tools for simulation experiment management"
+      stage_used_in: ["testing"]
+      mapped_agent_skill: "aiml_agent"
+
+    - id: SPEC008
+      name: "Geospatial Engineer"
+      description: "Builds systems that process, analyze, and visualize geographic and location data"
+      responsibilities:
+        - "Build geospatial data processing pipelines"
+        - "Implement mapping and location services"
+        - "Handle coordinate systems, projections, and spatial indexing"
+        - "Build geospatial analytics and visualization systems"
+        - "Optimize spatial query performance"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: SPEC009
+      name: "Audio Engineer"
+      description: "Builds software for audio processing, synthesis, and real-time communication"
+      responsibilities:
+        - "Implement audio signal processing algorithms"
+        - "Build real-time audio capture and playback systems"
+        - "Handle noise cancellation and audio enhancement"
+        - "Optimize audio codec and compression systems"
+        - "Test audio quality across devices and environments"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: SPEC010
+      name: "Video Engineer"
+      description: "Builds video encoding, streaming, and processing systems"
+      responsibilities:
+        - "Implement video encoding and transcoding pipelines"
+        - "Build adaptive bitrate streaming systems — HLS, DASH"
+        - "Optimize video quality and compression efficiency"
+        - "Build video processing and editing features"
+        - "Monitor video delivery quality and performance"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: SPEC011
+      name: "Streaming Media Engineer"
+      description: "Builds large-scale media streaming infrastructure and delivery systems"
+      responsibilities:
+        - "Design CDN and media delivery architecture"
+        - "Build live streaming and on-demand video infrastructure"
+        - "Handle global content distribution and caching"
+        - "Monitor streaming quality and user experience"
+        - "Optimize streaming cost and performance"
+      stage_used_in: ["backend_build", "deployment"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: SPEC012
+      name: "WebRTC Engineer"
+      description: "Builds real-time communication systems using WebRTC"
+      responsibilities:
+        - "Implement peer-to-peer audio and video calling"
+        - "Build WebRTC signaling servers and media servers"
+        - "Handle NAT traversal and connection establishment"
+        - "Optimize media quality under varying network conditions"
+        - "Test WebRTC across browsers and network environments"
+      stage_used_in: ["backend_build", "frontend_build"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: SPEC013
+      name: "Search Infrastructure Engineer"
+      description: "Builds the infrastructure behind large-scale search systems"
+      responsibilities:
+        - "Design and operate search cluster infrastructure"
+        - "Manage indexing pipelines and data freshness"
+        - "Optimize search performance and relevance at scale"
+        - "Build search quality evaluation frameworks"
+        - "Handle search infrastructure reliability and scaling"
+      stage_used_in: ["backend_build", "deployment"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: SPEC014
+      name: "AdTech Engineer"
+      description: "Builds advertising technology systems — ad serving, targeting, and measurement"
+      responsibilities:
+        - "Build ad serving and real-time bidding systems"
+        - "Implement audience targeting and segmentation"
+        - "Build ad measurement and attribution systems"
+        - "Handle privacy-preserving ad technology"
+        - "Optimize ad delivery performance and revenue"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: SPEC015
+      name: "MarTech Engineer"
+      description: "Builds marketing technology systems — campaigns, analytics, and personalization"
+      responsibilities:
+        - "Build marketing automation and campaign management systems"
+        - "Implement customer segmentation and personalization"
+        - "Integrate marketing platforms — Salesforce, HubSpot, Segment"
+        - "Build marketing analytics and attribution systems"
+        - "Ensure marketing system compliance with privacy regulations"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: SPEC016
+      name: "E-commerce Engineer"
+      description: "Builds online retail systems — catalog, cart, checkout, and order management"
+      responsibilities:
+        - "Build product catalog, search, and recommendation systems"
+        - "Implement cart, checkout, and payment flows"
+        - "Build order management and fulfillment systems"
+        - "Handle inventory management and availability"
+        - "Optimize conversion rate and checkout performance"
+      stage_used_in: ["backend_build", "frontend_build"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: SPEC017
+      name: "Healthcare Software Engineer"
+      description: "Builds software for healthcare — EHR systems, medical devices, and health data"
+      responsibilities:
+        - "Build HIPAA-compliant healthcare applications"
+        - "Implement HL7 FHIR and other healthcare data standards"
+        - "Integrate with EHR systems and medical devices"
+        - "Handle protected health information securely"
+        - "Ensure medical software validation and compliance"
+      stage_used_in: ["backend_build", "database_design"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: SPEC018
+      name: "EdTech Engineer"
+      description: "Builds educational technology products — learning platforms, content, and assessment"
+      responsibilities:
+        - "Build learning management and content delivery systems"
+        - "Implement assessment, grading, and progress tracking"
+        - "Design learner-centered UX and engagement features"
+        - "Build SCORM and LTI integrations"
+        - "Handle accessibility requirements for educational content"
+      stage_used_in: ["backend_build", "frontend_build"]
+      mapped_agent_skill: "backend_agent"
+
+    - id: SPEC019
+      name: "LegalTech Engineer"
+      description: "Builds legal technology products — document management, contracts, and compliance"
+      responsibilities:
+        - "Build document management and version control systems"
+        - "Implement contract generation and e-signature workflows"
+        - "Build legal research and case management tools"
+        - "Handle sensitive legal data with appropriate security"
+        - "Integrate with court systems and legal databases"
+      stage_used_in: ["backend_build"]
+      mapped_agent_skill: "backend_agent"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AGENT SKILL TO ROLE MAPPING
+# Maps each 3Netra agent skill to its real-world engineering roles
+# ─────────────────────────────────────────────────────────────────────────────
+
+agent_skill_mappings:
+
+  planning_agent:
+    display_name: "Planning Agent"
+    active_stage: "planning"
+    maps_to_roles:
+      - "Software Engineer / SDE"
+      - "Product Engineer"
+      - "Solutions Engineer"
+      - "Solutions Architect"
+      - "Tech Lead"
+      - "Software Architect"
+      - "System Architect"
+      - "Engineering Manager"
+    stage_responsibilities:
+      - "Understand the user goal and business context"
+      - "Define project scope and MVP boundaries"
+      - "Identify target users and key use cases"
+      - "Choose the technology stack"
+      - "Create a realistic timeline and milestone plan"
+      - "Identify risks and dependencies"
+      - "Produce a project plan the team can execute"
+
+  frontend_agent:
+    display_name: "Frontend Agent"
+    active_stage: "frontend_build"
+    maps_to_roles:
+      - "Frontend Engineer"
+      - "UI Engineer"
+      - "Web Engineer"
+      - "Design Systems Engineer"
+      - "Accessibility Engineer"
+      - "Mobile Engineer"
+      - "iOS Engineer"
+      - "Android Engineer"
+      - "Cross-Platform Mobile Engineer"
+    stage_responsibilities:
+      - "Build responsive, accessible UI pages and components"
+      - "Implement design system components consistently"
+      - "Manage client-side state and data fetching"
+      - "Handle loading, error, and empty states"
+      - "Ensure cross-browser and cross-device compatibility"
+      - "Optimize frontend performance"
+      - "Build one component or page at a time with user approval"
+
+  backend_agent:
+    display_name: "Backend Agent"
+    active_stage: "backend_build"
+    maps_to_roles:
+      - "Backend Engineer"
+      - "API Engineer"
+      - "Integration Engineer"
+      - "Platform Engineer"
+      - "Application Engineer"
+      - "Full-Stack Engineer"
+    stage_responsibilities:
+      - "Design and implement REST API endpoints"
+      - "Write business logic and domain services"
+      - "Handle authentication and authorization"
+      - "Implement input validation and error handling"
+      - "Connect to databases and external services"
+      - "Write structured logging for observability"
+      - "Build one feature or endpoint at a time with user approval"
+
+  database_agent:
+    display_name: "Database Agent"
+    active_stage: "database_design"
+    maps_to_roles:
+      - "Database Engineer"
+      - "Data Engineer"
+      - "Analytics Engineer"
+      - "Data Warehouse Engineer"
+      - "Data Quality Engineer"
+      - "Database Reliability Engineer"
+    stage_responsibilities:
+      - "Design database schema for the project domain"
+      - "Create tables, models, and relationships"
+      - "Define indexes for performance"
+      - "Write database migration scripts"
+      - "Validate data quality rules"
+      - "Optimize query performance"
+      - "Ensure referential integrity and constraints"
+
+  aiml_agent:
+    display_name: "AI/ML Agent"
+    active_stage: "backend_build"
+    maps_to_roles:
+      - "Machine Learning Engineer"
+      - "AI Engineer"
+      - "LLM Engineer"
+      - "RAG Engineer"
+      - "MLOps Engineer"
+      - "NLP Engineer"
+      - "Computer Vision Engineer"
+      - "Recommendation Systems Engineer"
+    stage_responsibilities:
+      - "Design ML pipeline from data to production"
+      - "Implement model training and evaluation"
+      - "Build AI feature integrations"
+      - "Set up vector databases and embeddings"
+      - "Define evaluation metrics for model quality"
+      - "Build model serving endpoints"
+      - "Monitor model performance and detect drift"
+
+  devops_agent:
+    display_name: "DevOps Agent"
+    active_stage: "deployment"
+    maps_to_roles:
+      - "DevOps Engineer"
+      - "Cloud Engineer"
+      - "Site Reliability Engineer / SRE"
+      - "Platform Engineer"
+      - "Infrastructure Engineer"
+      - "CI/CD Engineer"
+      - "Kubernetes Engineer"
+    stage_responsibilities:
+      - "Set up Docker and containerization"
+      - "Configure environment variables and secrets"
+      - "Build CI/CD pipeline for automated deployment"
+      - "Configure monitoring and alerting"
+      - "Prepare deployment checklist"
+      - "Set up health checks and rollback procedures"
+      - "Ensure production readiness"
+
+  security_agent:
+    display_name: "Security Agent"
+    active_stage: "architecture | testing | deployment"
+    maps_to_roles:
+      - "Security Engineer"
+      - "Application Security Engineer"
+      - "Cloud Security Engineer"
+      - "DevSecOps Engineer"
+      - "Privacy Engineer"
+      - "Cryptography Engineer"
+    stage_responsibilities:
+      - "Review authentication and authorization implementation"
+      - "Validate all API routes are properly protected"
+      - "Check for injection vulnerabilities"
+      - "Ensure secrets are not exposed"
+      - "Validate input handling at all boundaries"
+      - "Check CORS, rate limiting, and security headers"
+      - "Review dependency vulnerabilities"
+
+  testing_agent:
+    display_name: "Testing Agent"
+    active_stage: "testing"
+    maps_to_roles:
+      - "QA Engineer"
+      - "SDET"
+      - "Test Automation Engineer"
+      - "Performance Test Engineer"
+      - "Security Testing Engineer"
+      - "Chaos Engineer"
+    stage_responsibilities:
+      - "Write unit tests for business logic"
+      - "Build integration tests for API endpoints"
+      - "Create end-to-end tests for critical user flows"
+      - "Test edge cases and error conditions"
+      - "Run performance tests under expected load"
+      - "Validate security controls through testing"
+      - "Confirm feature behavior matches requirements"
+
+  review_agent:
+    display_name: "Review Agent"
+    active_stage: "final_review"
+    maps_to_roles:
+      - "Staff Engineer"
+      - "Principal Engineer"
+      - "Software Architect"
+      - "System Architect"
+      - "Distinguished Engineer"
+      - "Tech Lead"
+    stage_responsibilities:
+      - "Review overall architecture for correctness"
+      - "Catch design inconsistencies across components"
+      - "Evaluate scalability and maintainability"
+      - "Verify security controls are complete"
+      - "Assess production readiness"
+      - "Provide final technical approval"
+      - "Document what was built and what remains"
+
+  loop_engineer:
+    display_name: "Loop Engineer"
+    active_stage: "all"
+    maps_to_roles:
+      - "Tech Lead"
+      - "Principal Engineer"
+      - "Engineering Manager"
+      - "VP of Engineering"
+      - "CTO"
+    stage_responsibilities:
+      - "Control the full workflow and stage progression"
+      - "Decide which agent skill is active at each step"
+      - "Carry approved decisions forward to each stage"
+      - "Prevent the system from building too much at once"
+      - "Require user confirmation before every major step"
+      - "Monitor output quality across all agents"
+      - "Stop the pipeline if a blocking issue is found"
+      - "Ensure every output is reviewed before presentation"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# WORKFLOW STAGE DEFINITIONS
+# ─────────────────────────────────────────────────────────────────────────────
+
+workflow_stages:
+
+  - stage_id: 1
+    name: "planning"
+    display_name: "Planning"
+    active_agent: "planning_agent"
+    active_roles:
+      - "Product Engineer"
+      - "Tech Lead"
+      - "Software Architect"
+    output:
+      - "Project goal and business context"
+      - "Target user definition"
+      - "MVP feature list"
+      - "Technology stack decision"
+      - "Timeline and milestones"
+      - "Risk assessment"
+    user_approval_required: true
+    approval_prompt: "Does this project plan match your vision? Approve to move to architecture."
+
+  - stage_id: 2
+    name: "architecture"
+    display_name: "Architecture"
+    active_agent: "review_agent"
+    supporting_agents:
+      - "backend_agent"
+      - "database_agent"
+      - "devops_agent"
+      - "security_agent"
+    active_roles:
+      - "Software Architect"
+      - "Backend Engineer"
+      - "Database Engineer"
+      - "DevOps Engineer"
+      - "Security Engineer"
+    output:
+      - "Frontend component structure"
+      - "Backend service architecture"
+      - "Database schema design"
+      - "API contract definitions"
+      - "Authentication and authorization flow"
+      - "Deployment architecture"
+      - "Security plan"
+    user_approval_required: true
+    approval_prompt: "Review the architecture design. Approve to begin code generation."
+
+  - stage_id: 3
+    name: "frontend_build"
+    display_name: "Frontend Build"
+    active_agent: "frontend_agent"
+    active_roles:
+      - "Frontend Engineer"
+      - "UI Engineer"
+      - "Design Systems Engineer"
+      - "Accessibility Engineer"
+    output:
+      - "One page or component at a time"
+      - "File changes summary"
+      - "Component preview"
+    user_approval_required: true
+    approval_prompt: "Review this component. Approve to continue or request changes."
+
+  - stage_id: 4
+    name: "backend_build"
+    display_name: "Backend Build"
+    active_agent: "backend_agent"
+    supporting_agents:
+      - "database_agent"
+      - "security_agent"
+    active_roles:
+      - "Backend Engineer"
+      - "API Engineer"
+      - "Database Engineer"
+      - "Security Engineer"
+    output:
+      - "One backend feature at a time"
+      - "API route definition"
+      - "Request and response schema"
+      - "Validation and error handling"
+      - "File changes summary"
+    user_approval_required: true
+    approval_prompt: "Review this backend feature. Approve to continue or request changes."
+
+  - stage_id: 5
+    name: "integration"
+    display_name: "Integration"
+    active_agent: "backend_agent"
+    supporting_agents:
+      - "frontend_agent"
+      - "testing_agent"
+    active_roles:
+      - "Full-Stack Engineer"
+      - "Integration Engineer"
+      - "QA Engineer"
+    output:
+      - "Frontend and backend connected"
+      - "API shape verified"
+      - "Loading and error states validated"
+      - "Data persistence confirmed"
+    user_approval_required: true
+    approval_prompt: "Confirm frontend and backend are connected correctly."
+
+  - stage_id: 6
+    name: "testing"
+    display_name: "Testing"
+    active_agent: "testing_agent"
+    supporting_agents:
+      - "security_agent"
+    active_roles:
+      - "QA Engineer"
+      - "SDET"
+      - "Security Testing Engineer"
+      - "Performance Test Engineer"
+    output:
+      - "Unit test suite"
+      - "API test cases"
+      - "End-to-end test scenarios"
+      - "Edge case coverage"
+      - "Security test results"
+      - "Performance baseline"
+    user_approval_required: true
+    approval_prompt: "Review test results and coverage. Approve to proceed to deployment."
+
+  - stage_id: 7
+    name: "deployment"
+    display_name: "Deployment"
+    active_agent: "devops_agent"
+    active_roles:
+      - "DevOps Engineer"
+      - "Cloud Engineer"
+      - "Site Reliability Engineer / SRE"
+    output:
+      - "Docker configuration"
+      - "Environment variable setup"
+      - "CI/CD pipeline configuration"
+      - "Monitoring and alerting setup"
+      - "Production readiness checklist"
+    user_approval_required: true
+    approval_prompt: "Review deployment configuration. Approve to finalize."
+
+  - stage_id: 8
+    name: "final_review"
+    display_name: "Final Review"
+    active_agent: "review_agent"
+    supporting_agents:
+      - "loop_engineer"
+    active_roles:
+      - "Staff Engineer"
+      - "Principal Engineer"
+      - "Loop Engineer"
+    output:
+      - "Complete project review"
+      - "What was built summary"
+      - "What remains pending"
+      - "Improvement recommendations"
+      - "Deployment readiness assessment"
+    user_approval_required: false
+    approval_prompt: null

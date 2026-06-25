@@ -34,6 +34,8 @@ logger = logging.getLogger(__name__)
 from routes import (
     research,
     council,
+    pro_council,
+    workflow,
     diagrams,
     project_graph,
     ideas,
@@ -43,6 +45,7 @@ from routes import (
     discuss,
     auth_routes,
     projects_db,
+    quiz
 )
 
 # ── Lifespan ──────────────────────────────────
@@ -105,7 +108,9 @@ app.include_router(session.router,       prefix="/api")
 app.include_router(reframe.router,       prefix="/api")
 app.include_router(deep_analysis.router, prefix="/api")
 app.include_router(discuss.router,       prefix="/api")
-
+app.include_router(pro_council.router,   prefix="/api")
+app.include_router(workflow.router,      prefix="/api")
+app.include_router(quiz.router,          prefix="/api")
 # Auth + user project routes (JWT required)
 app.include_router(auth_routes.router,   prefix="/api")
 app.include_router(projects_db.router,   prefix="/api")

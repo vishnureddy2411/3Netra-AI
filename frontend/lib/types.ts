@@ -183,6 +183,23 @@ export type MessageContent =
       label: string
     }
   | { type: 'error'; message: string }
+  | {
+      type: 'pro_council'
+      verdict: any
+      agentOutputs: any[]
+      task: string
+      projectId: string
+      resolvedContext?: string
+      role: string
+    }
+    | {
+      type: 'quiz'
+      projectId: string
+      idea: string
+      role: string
+      projectGraph: any
+      diagrams: any[]
+    }
 export interface Message {
   id: string
   content: MessageContent
