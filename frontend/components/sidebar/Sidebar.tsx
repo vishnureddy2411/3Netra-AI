@@ -1,14 +1,23 @@
 // ─────────────────────────────────────────────
-// Sidebar — ChatGPT-style project history
-// Shows all user projects with status and progress
+// Sidebar — project history
 // ─────────────────────────────────────────────
 
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import UserMenu from './UserMenu'
 import { listProjects, listSessions, deleteProject } from '../../lib/projects'
 import type { UserProject } from '../../lib/supabase'
+import {
+  ClipboardList,
+  BookOpen,
+  Code2,
+  Eye,
+  FileText,
+  TestTube2,
+  Rocket,
+  MessageSquare,
+} from 'lucide-react'
 
 interface Props {
   activeProjectId: string | null
@@ -24,14 +33,14 @@ interface Props {
   refreshTrigger?: number
 }
 
-const STAGE_ICONS: Record<string, string> = {
-  planning: '📋',
-  quiz:     '📚',
-  code_gen: '💻',
-  preview:  '👁',
-  career:   '📄',
-  qa:       '🧪',
-  deploy:   '🚀',
+const STAGE_ICONS: Record<string, React.ReactNode> = {
+  planning: <ClipboardList size={12} />,
+  quiz:     <BookOpen      size={12} />,
+  code_gen: <Code2         size={12} />,
+  preview:  <Eye           size={12} />,
+  career:   <FileText      size={12} />,
+  qa:       <TestTube2     size={12} />,
+  deploy:   <Rocket        size={12} />,
 }
 
 const STAGE_LABELS: Record<string, string> = {
@@ -53,8 +62,8 @@ const STATUS_COLORS: Record<string, string> = {
 
 function timeAgo(dateStr: string) {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
-  if (diff < 60)   return 'just now'
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  if (diff < 60)    return 'just now'
+  if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
   return `${Math.floor(diff / 86400)}d ago`
 }
@@ -72,15 +81,15 @@ export default function Sidebar({
   onToggle,
   refreshTrigger,
 }: Props) {
-  const [projects,         setProjects]         = useState<UserProject[]>([])
-  const [filtered,         setFiltered]         = useState<UserProject[]>([])
-  const [search,           setSearch]           = useState('')
-  const [activeFilter,     setActiveFilter]     = useState('all')
-  const [isLoading,        setIsLoading]        = useState(true)
-  const [expandedProject,  setExpandedProject]  = useState<string | null>(null)
-  const [projectSessions,  setProjectSessions]  = useState<Record<string, any[]>>({})
-  const [loadingSessions,  setLoadingSessions]  = useState<Record<string, boolean>>({})
-  const [deleteConfirm,    setDeleteConfirm]    = useState<string | null>(null)
+  const [projects,        setProjects]        = useState<UserProject[]>([])
+  const [filtered,        setFiltered]        = useState<UserProject[]>([])
+  const [search,          setSearch]          = useState('')
+  const [activeFilter,    setActiveFilter]    = useState('all')
+  const [isLoading,       setIsLoading]       = useState(true)
+  const [expandedProject, setExpandedProject] = useState<string | null>(null)
+  const [projectSessions, setProjectSessions] = useState<Record<string, any[]>>({})
+  const [loadingSessions, setLoadingSessions] = useState<Record<string, boolean>>({})
+  const [deleteConfirm,   setDeleteConfirm]   = useState<string | null>(null)
 
   const loadProjects = useCallback(async () => {
     try {
@@ -93,19 +102,12 @@ export default function Sidebar({
     }
   }, [])
 
-  // Initial load
-  useEffect(() => {
-    loadProjects()
-  }, [loadProjects])
+  useEffect(() => { loadProjects() }, [loadProjects])
 
-  // Auto-refresh when trigger changes
   useEffect(() => {
-    if (refreshTrigger && refreshTrigger > 0) {
-      loadProjects()
-    }
+    if (refreshTrigger && refreshTrigger > 0) loadProjects()
   }, [refreshTrigger, loadProjects])
 
-  // Auto-expand active project and load its sessions
   useEffect(() => {
     if (activeProjectId) {
       setExpandedProject(activeProjectId)
@@ -113,7 +115,6 @@ export default function Sidebar({
     }
   }, [activeProjectId])
 
-  // Filter projects
   useEffect(() => {
     let result = [...projects]
     if (activeFilter !== 'all') {
@@ -149,7 +150,6 @@ export default function Sidebar({
       setExpandedProject(project.id)
       loadProjectSessions(project.id)
     }
-    
   }
 
   const counts = projects.reduce((acc, p) => {
@@ -158,14 +158,14 @@ export default function Sidebar({
   }, {} as Record<string, number>)
 
   const FILTERS = [
-    { id: 'all',         label: 'All'     },
-    { id: 'in_progress', label: 'Active'  },
-    { id: 'pending',     label: 'Pending' },
-    { id: 'completed',   label: 'Done'    },
-    { id: 'archived',    label: 'Archived'},
+    { id: 'all',         label: 'All'      },
+    { id: 'in_progress', label: 'Active'   },
+    { id: 'pending',     label: 'Pending'  },
+    { id: 'completed',   label: 'Done'     },
+    { id: 'archived',    label: 'Archived' },
   ]
 
-  // ── Collapsed sidebar ─────────────────────────
+  // ── Collapsed sidebar ─────────────────────────────────────────────────────
 
   if (isCollapsed) {
     return (
@@ -181,35 +181,39 @@ export default function Sidebar({
         </button>
         <div className="flex-1 overflow-y-auto py-2 space-y-2 px-2">
           {filtered.slice(0, 10).map(p => (
-            <button key={p.id} onClick={() => handleProjectClick(p)} title={p.title}
+            <a
+              key={p.id}
+              href={`/project/${p.id}`}
+              title={p.title}
+              onClick={e => { e.preventDefault(); handleProjectClick(p) }}
               className={`w-10 h-10 rounded-lg border flex items-center justify-center text-xs font-bold transition-colors ${
                 p.id === activeProjectId
                   ? 'bg-[#1c2333] border-[#58a6ff]/30 text-[#58a6ff]'
                   : 'bg-[#161b22] border-[#21262d] text-[#484f58] hover:text-[#e6edf3]'
               }`}>
               {p.title.slice(0, 2).toUpperCase()}
-            </button>
+            </a>
           ))}
         </div>
       </div>
     )
   }
 
-  // ── Full sidebar ──────────────────────────────
+  // ── Full sidebar ──────────────────────────────────────────────────────────
 
   return (
     <div className="flex flex-col h-full w-64 bg-[#0d1117] border-r border-[#21262d] flex-shrink-0">
 
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#21262d]">
-        <div className="flex items-center gap-2">
+        <a href="/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
           <div className="w-6 h-6 rounded-lg bg-[#f0b429]/10 border border-[#f0b429]/20 flex items-center justify-center">
             <span className="text-[#f0b429] text-xs font-bold">3</span>
           </div>
           <span className="text-sm font-semibold text-[#e6edf3]">
             3Netra<span className="text-[#f0b429]">-AI</span>
           </span>
-        </div>
+        </a>
         <button onClick={onToggle}
           className="text-[#484f58] hover:text-[#e6edf3] transition-colors text-sm w-6 h-6 flex items-center justify-center rounded hover:bg-[#161b22]">
           ←
@@ -273,7 +277,7 @@ export default function Sidebar({
       <div className="flex-1 overflow-y-auto px-2 py-2">
         {isLoading ? (
           <div className="space-y-2 px-1">
-            {[1,2,3].map(i => (
+            {[1, 2, 3].map(i => (
               <div key={i} className="h-16 bg-[#161b22] border border-[#21262d] rounded-xl animate-pulse" />
             ))}
           </div>
@@ -299,10 +303,10 @@ export default function Sidebar({
             </div>
 
             {filtered.map(project => {
-              const isActive   = project.id === activeProjectId
-              const isExpanded = expandedProject === project.id
-              const stages     = projectSessions[project.id] || []
-              const isLoadingS = loadingSessions[project.id]
+              const isActive    = project.id === activeProjectId
+              const isExpanded  = expandedProject === project.id
+              const stages      = projectSessions[project.id] || []
+              const isLoadingS  = loadingSessions[project.id]
               const statusColor = STATUS_COLORS[project.overall_status] || STATUS_COLORS.pending
 
               return (
@@ -349,20 +353,34 @@ export default function Sidebar({
                       </div>
                     </button>
 
-                    {/* Delete button */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setDeleteConfirm(deleteConfirm === project.id ? null : project.id)
-                      }}
-                      className="opacity-0 group-hover:opacity-100 flex-shrink-0 w-6 h-6 flex items-center justify-center text-[#484f58] hover:text-[#f85149] hover:bg-[#2d1b1b] rounded transition-all mr-1"
-                      title="Delete project"
-                    >
-                      ✕
-                    </button>
+                    {/* Action buttons — visible on hover */}
+                    <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 mr-1 transition-all">
+                      {/* Open project in new tab */}
+                      <a
+                        href={`/project/${project.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={e => e.stopPropagation()}
+                        className="w-6 h-6 flex items-center justify-center text-[#484f58] hover:text-[#58a6ff] hover:bg-[#1c2333] rounded transition-all"
+                        title="Open project in new tab"
+                      >
+                        ↗
+                      </a>
+                      {/* Delete */}
+                      <button
+                        onClick={e => {
+                          e.stopPropagation()
+                          setDeleteConfirm(deleteConfirm === project.id ? null : project.id)
+                        }}
+                        className="w-6 h-6 flex items-center justify-center text-[#484f58] hover:text-[#f85149] hover:bg-[#2d1b1b] rounded transition-all"
+                        title="Delete project"
+                      >
+                        ✕
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Delete confirmation — inline, no popup */}
+                  {/* Delete confirmation */}
                   {deleteConfirm === project.id && (
                     <div className="mx-2 mb-1 bg-[#2d1b1b] border border-[#f85149]/20 rounded-xl p-3">
                       <p className="text-xs text-[#f85149] mb-2 leading-relaxed">
@@ -371,20 +389,17 @@ export default function Sidebar({
                       </p>
                       <div className="flex gap-2">
                         <button
-                          onClick={async (e) => {
+                          onClick={async e => {
                             e.stopPropagation()
                             const ok = await deleteProject(project.id)
-                            if (ok) {
-                              setDeleteConfirm(null)
-                              loadProjects()
-                            }
+                            if (ok) { setDeleteConfirm(null); loadProjects() }
                           }}
                           className="flex-1 py-1.5 bg-[#f85149] text-white text-xs font-semibold rounded-lg hover:bg-[#e0403a] transition-colors"
                         >
                           Delete
                         </button>
                         <button
-                          onClick={(e) => { e.stopPropagation(); setDeleteConfirm(null) }}
+                          onClick={e => { e.stopPropagation(); setDeleteConfirm(null) }}
                           className="flex-1 py-1.5 bg-[#161b22] border border-[#30363d] text-[#484f58] text-xs rounded-lg hover:text-[#e6edf3] transition-colors"
                         >
                           Cancel
@@ -393,12 +408,12 @@ export default function Sidebar({
                     </div>
                   )}
 
-                  {/* Sessions panel — expanded */}
+                  {/* Sessions panel */}
                   {isExpanded && (
                     <div className="ml-3 mr-1 mb-1 bg-[#0d1117] border border-[#21262d] rounded-xl overflow-hidden">
                       {isLoadingS ? (
                         <div className="px-3 py-3 space-y-2">
-                          {[1,2].map(i => (
+                          {[1, 2].map(i => (
                             <div key={i} className="h-8 bg-[#161b22] rounded animate-pulse" />
                           ))}
                         </div>
@@ -410,49 +425,96 @@ export default function Sidebar({
                         <div className="py-1">
                           {stages.map((stage: any) => (
                             <div key={stage.stage_number}>
-                              <div className="px-3 py-1.5 flex items-center gap-1.5">
-                                <span className="text-xs">
-                                  {STAGE_ICONS[stage.stage_name] || '💬'}
-                                </span>
-                                <span className="text-xs font-mono text-[#30363d] uppercase tracking-widest">
-                                  {STAGE_LABELS[stage.stage_name] || stage.stage_name}
-                                </span>
-                              </div>
-                              {stage.sessions.map((session: any) => (
-                                <button
-                                  key={session.id}
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    onSessionSelect?.(project, session.id)
-                                  }}
-                                  className={`w-full text-left px-3 py-2 transition-colors hover:bg-[#161b22] ${
-                                    session.id === activeSessionId ? 'bg-[#161b22]' : ''
-                                  }`}
+                              {/* Stage label */}
+                              <div className="px-3 py-1.5 flex items-center justify-between gap-1.5">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[#484f58] flex items-center">
+                                    {STAGE_ICONS[stage.stage_name] || <MessageSquare size={12} />}
+                                  </span>
+                                  <span className="text-xs font-mono text-[#30363d] uppercase tracking-widest">
+                                    {STAGE_LABELS[stage.stage_name] || stage.stage_name}
+                                  </span>
+                                </div>
+                                {/* Open stage in project page */}
+                                <a
+                                  href={`/project/${project.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={e => e.stopPropagation()}
+                                  className="text-[#30363d] hover:text-[#58a6ff] text-xs transition-colors"
+                                  title="Open in project view"
                                 >
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-1.5 min-w-0">
-                                      {session.status === 'active' && (
-                                        <div className="w-1.5 h-1.5 rounded-full bg-[#3fb950] flex-shrink-0" />
-                                      )}
-                                      <span className={`text-xs truncate ${
-                                        session.id === activeSessionId ? 'text-[#e6edf3]' : 'text-[#8b949e]'
-                                      }`}>
-                                        Session {session.session_number}
-                                      </span>
-                                    </div>
-                                    <span className="text-xs text-[#30363d]">
-                                      {session.message_count}msg
-                                    </span>
+                                  ↗
+                                </a>
+                              </div>
+
+                              {/* Session items */}
+                              {stage.sessions.map((session: any) => {
+                                const isActiveSession = session.id === activeSessionId
+                                return (
+                                  <div
+                                    key={session.id}
+                                    className={`group/session flex items-center transition-colors hover:bg-[#161b22] ${
+                                      isActiveSession ? 'bg-[#161b22]' : ''
+                                    }`}
+                                  >
+                                    {/* Session click — loads read-only view */}
+                                    <button
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        onSessionSelect?.(project, session.id)
+                                      }}
+                                      className="flex-1 text-left px-3 py-2"
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-1.5 min-w-0">
+                                          {session.status === 'active' && (
+                                            <div className="w-1.5 h-1.5 rounded-full bg-[#3fb950] flex-shrink-0" />
+                                          )}
+                                          <span className={`text-xs truncate ${
+                                            isActiveSession ? 'text-[#e6edf3]' : 'text-[#8b949e]'
+                                          }`}>
+                                            {session.title || `Session ${session.session_number}`}
+                                          </span>
+                                        </div>
+                                        <span className="text-xs text-[#30363d] flex-shrink-0 ml-2">
+                                          {session.message_count}msg
+                                        </span>
+                                      </div>
+                                      <div className="text-xs text-[#30363d] mt-0.5 pl-3">
+                                        {timeAgo(session.created_at)}
+                                      </div>
+                                    </button>
+
+                                    {/* Open session project in new tab */}
+                                    <a
+                                      href={`/project/${project.id}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={e => e.stopPropagation()}
+                                      className="opacity-0 group-hover/session:opacity-100 w-6 h-6 flex items-center justify-center text-[#30363d] hover:text-[#58a6ff] transition-all mr-1 flex-shrink-0"
+                                      title="Open in new tab"
+                                    >
+                                      ↗
+                                    </a>
                                   </div>
-                                  <div className="text-xs text-[#30363d] mt-0.5 pl-3">
-                                    {timeAgo(session.created_at)}
-                                  </div>
-                                </button>
-                              ))}
+                                )
+                              })}
                             </div>
                           ))}
                         </div>
                       )}
+
+                      {/* Resume project footer */}
+                      <div className="border-t border-[#21262d] px-3 py-2">
+                        <a
+                          href={`/?project=${project.id}`}
+                          className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs text-[#484f58] hover:text-[#f0b429] hover:bg-[#161b22] rounded-lg transition-colors font-mono"
+                          title="Resume this project"
+                        >
+                          Resume Project →
+                        </a>
+                      </div>
                     </div>
                   )}
                 </div>

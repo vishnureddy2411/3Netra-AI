@@ -370,7 +370,160 @@ def _extract_domain_terms(idea: str) -> dict:
         "sub_entity": capitalized[2] if len(capitalized) > 2 else "Report",
         "raw":        domain_terms,
     }
+def _build_tech_decisions(tech_stack: list, idea: str) -> dict:
+    """
+    Dynamically maps council recommended_stack into tech_decisions categories.
+    Never hardcodes a specific framework — always reads from what council chose.
+    """
+    if not tech_stack:
+        return {
+            "frontend":    "To be determined based on project requirements",
+            "backend":     "To be determined based on project requirements",
+            "database":    "To be determined based on project requirements",
+            "auth":        "To be determined based on project requirements",
+            "deployment":  "To be determined based on project requirements",
+            "key_libraries": [],
+        }
 
+    stack_lower = [t.lower() for t in tech_stack]
+
+    # ── Frontend detection ────────────────────────────────────────────────
+    frontend_keywords = {
+        "next":      "Next.js",
+        "react":     "React",
+        "vue":       "Vue.js",
+        "nuxt":      "Nuxt.js",
+        "svelte":    "SvelteKit",
+        "angular":   "Angular",
+        "remix":     "Remix",
+        "astro":     "Astro",
+        "gatsby":    "Gatsby",
+        "flutter":   "Flutter",
+        "react native": "React Native",
+        "swift":     "SwiftUI",
+        "kotlin":    "Jetpack Compose",
+        "electron":  "Electron",
+        "tauri":     "Tauri",
+    }
+    frontend = next(
+        (tech_stack[i] for i, s in enumerate(stack_lower)
+         if any(kw in s for kw in frontend_keywords)),
+        None
+    )
+
+    # ── Backend detection ─────────────────────────────────────────────────
+    backend_keywords = {
+        "fastapi":   "FastAPI",
+        "django":    "Django",
+        "flask":     "Flask",
+        "express":   "Express.js",
+        "node":      "Node.js",
+        "nest":      "NestJS",
+        "spring":    "Spring Boot",
+        "rails":     "Ruby on Rails",
+        "laravel":   "Laravel",
+        "gin":       "Gin",
+        "fiber":     "Fiber",
+        "actix":     "Actix",
+        "axum":      "Axum",
+        "phoenix":   "Phoenix",
+        "dotnet":    ".NET",
+        "asp.net":   "ASP.NET",
+        "fastify":   "Fastify",
+        "hono":      "Hono",
+    }
+    backend = next(
+        (tech_stack[i] for i, s in enumerate(stack_lower)
+         if any(kw in s for kw in backend_keywords)),
+        None
+    )
+
+    # ── Database detection ────────────────────────────────────────────────
+    database_keywords = {
+        "postgres":   "PostgreSQL",
+        "mysql":      "MySQL",
+        "mongodb":    "MongoDB",
+        "mongo":      "MongoDB",
+        "sqlite":     "SQLite",
+        "redis":      "Redis",
+        "valkey":     "Valkey",
+        "dynamodb":   "DynamoDB",
+        "firestore":  "Firestore",
+        "supabase":   "Supabase",
+        "planetscale":"PlanetScale",
+        "cockroach":  "CockroachDB",
+        "cassandra":  "Cassandra",
+        "clickhouse": "ClickHouse",
+        "elasticsearch": "Elasticsearch",
+        "neo4j":      "Neo4j",
+        "prisma":     "PostgreSQL via Prisma",
+        "drizzle":    "PostgreSQL via Drizzle",
+    }
+    database = next(
+        (tech_stack[i] for i, s in enumerate(stack_lower)
+         if any(kw in s for kw in database_keywords)),
+        None
+    )
+
+    # ── Auth detection ────────────────────────────────────────────────────
+    auth_keywords = {
+        "supabase":   "Supabase Auth — built-in JWT + OAuth providers",
+        "firebase":   "Firebase Auth — Google, email/password, social providers",
+        "auth0":      "Auth0 — enterprise SSO + social login",
+        "clerk":      "Clerk — drop-in auth with UI components",
+        "nextauth":   "NextAuth.js — OAuth + JWT for Next.js",
+        "passport":   "Passport.js — flexible auth middleware",
+        "keycloak":   "Keycloak — self-hosted identity provider",
+        "cognito":    "AWS Cognito — managed auth for AWS deployments",
+        "jwt":        "JWT with refresh tokens — 15min access, 7d refresh",
+    }
+    auth = next(
+        (desc for kw, desc in auth_keywords.items()
+         if any(kw in s for s in stack_lower)),
+        "JWT with refresh tokens — 15min access, 7d refresh"
+    )
+
+    # ── Deployment detection ──────────────────────────────────────────────
+    deploy_keywords = {
+        "vercel":     "Vercel (frontend) + Railway (backend) + Docker",
+        "railway":    "Railway — full stack deployment with Docker",
+        "aws":        "AWS — ECS or Lambda + RDS + S3 + CloudFront",
+        "gcp":        "Google Cloud — Cloud Run + Cloud SQL + GCS",
+        "azure":      "Azure — Container Apps + Azure SQL + Blob Storage",
+        "heroku":     "Heroku — git push deployment with add-ons",
+        "fly":        "Fly.io — Docker deployment close to users",
+        "render":     "Render — Docker + managed PostgreSQL",
+        "netlify":    "Netlify (frontend) + serverless functions",
+        "docker":     "Docker + Docker Compose — containerized deployment",
+        "kubernetes": "Kubernetes — container orchestration at scale",
+        "terraform":  "Terraform IaC + cloud provider of choice",
+    }
+    deployment = next(
+        (desc for kw, desc in deploy_keywords.items()
+         if any(kw in s for s in stack_lower)),
+        "Docker + GitHub Actions CI/CD → cloud provider of choice"
+    )
+
+    # ── Key libraries — remaining stack items not categorized above ───────
+    categorized = set()
+    if frontend: categorized.add(frontend.lower().split()[0])
+    if backend:  categorized.add(backend.lower().split()[0])
+    if database: categorized.add(database.lower().split()[0])
+
+    key_libraries = [
+        t for t in tech_stack
+        if not any(c in t.lower() for c in categorized)
+        and not any(kw in t.lower() for kw in ["docker", "vercel", "railway", "aws", "gcp", "azure"])
+    ][:6]
+
+    return {
+        "frontend":    frontend or tech_stack[0],
+        "backend":     backend  or (tech_stack[1] if len(tech_stack) > 1 else "server-side framework from recommended stack"),
+        "database":    database or (tech_stack[2] if len(tech_stack) > 2 else "database from recommended stack"),
+        "auth":        auth,
+        "deployment":  deployment,
+        "key_libraries": key_libraries,
+    }
 
 def _smart_fallback_graph(idea: str, verdict: dict | None = None) -> dict:
     tech_stack = verdict.get("recommended_stack", []) if verdict else []
@@ -516,16 +669,5 @@ def _smart_fallback_graph(idea: str, verdict: dict | None = None) -> dict:
                 {"label": "Account", "routes": [p["path"] for p in pages[3:]]},
             ],
         },
-        "tech_decisions": {
-            "frontend":    tech_stack[0] if tech_stack else "Next.js — SSR + file-based routing",
-            "backend":     next((t for t in tech_stack if any(w in t.lower() for w in ["fast", "django", "express", "node"])), "FastAPI — async, typed, auto-docs"),
-            "database":    next((t for t in tech_stack if any(w in t.lower() for w in ["postgres", "mysql", "mongo", "redis"])), "PostgreSQL — ACID, row-level security"),
-            "auth":        "JWT with refresh tokens — 15min access, 7d refresh",
-            "deployment":  "Docker + GitHub Actions → Railway (backend) + Vercel (frontend)",
-            "key_libraries": [
-                "Pydantic v2 — request/response validation",
-                "SQLAlchemy 2.0 — async ORM",
-                "Tailwind CSS — utility-first styling",
-            ],
-        },
+        "tech_decisions": _build_tech_decisions(tech_stack, idea),
     }

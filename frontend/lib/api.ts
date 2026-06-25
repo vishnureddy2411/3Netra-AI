@@ -365,3 +365,39 @@ export async function completeQuiz(
 ) {
   return apiPost('quiz/complete', { project_id: projectId, all_gaps: allGaps, all_rounds: allRounds, idea, role })
 }
+
+// ── Conversational Chat Agent ─────────────────────────────────────────────────
+
+export async function sendChatMessage(
+  projectId: string,
+  message:   string,
+  history:   { role: string; content: string }[],
+  intake:    IntakeData,
+  userType:  string,
+  stage?:    string,
+) {
+  return apiPost('chat', {
+    project_id: projectId,
+    message,
+    history,
+    role:      intake.role || 'Software Engineer',
+    purpose:   intake.purpose || 'portfolio',
+    user_type: userType,
+    stage:     stage || '',
+  })
+}
+// ── Project Briefing ──────────────────────────────────────────────────────────
+
+export async function getProjectBriefing(
+  projectId: string,
+  role:       string,
+  purpose:    string,
+  userType:   string,
+) {
+  return apiPost('chat/briefing', {
+    project_id: projectId,
+    role,
+    purpose,
+    user_type:  userType,
+  })
+}

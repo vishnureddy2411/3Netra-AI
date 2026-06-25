@@ -200,6 +200,16 @@ export type MessageContent =
       projectGraph: any
       diagrams: any[]
     }
+    | {
+      type:    'agent_response'
+      text:    string
+      sources: string[]
+    }
+    | {
+      type:    'briefing'
+      text:    string
+      sources: string[]
+    }
 export interface Message {
   id: string
   content: MessageContent

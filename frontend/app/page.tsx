@@ -40,6 +40,8 @@ import {
   executeWorkflowStage,
   approveWorkflowStage,
   rejectWorkflowStage,
+  sendChatMessage,
+  getProjectBriefing,
 } from '../lib/api'
 import { PURPOSE_OPTIONS } from '../lib/constants'
 import {
@@ -328,6 +330,41 @@ const [showQuiz,                setShowQuiz]                 = useState(false)
     } finally {
       setIsRunning(false)
       setActiveStage(null)
+    }
+  }
+
+  // ── Chat Agent ────────────────────────────────
+
+  const runChatAgent = async (text: string) => {
+    const thinkId = addMsg({
+      type: 'thinking', stage: 'Agent',
+      message: 'Reading project context and preparing response...',
+    })
+    setIsRunning(true)
+    try {
+      const history = messages
+        .filter(m => m.content.type === 'user' || m.content.type === 'agent_response')
+        .slice(-10)
+        .map(m => ({
+          role:    m.content.type === 'user' ? 'user' : 'agent',
+          content: (m.content as any).text || '',
+        }))
+      const r = await sendChatMessage(
+        activeProjectId || '',
+        text,
+        history,
+        intakeData || { purpose: userType === 'professional' ? 'professional' : 'portfolio', role: gateData.role, originalMessage: text },
+        userType,
+        activeStage || '',
+      )
+      updateMsg(thinkId, { type: 'agent_response', text: r.response, sources: r.sources || [] })
+    } catch (err) {
+      updateMsg(thinkId, {
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Agent failed to respond.',
+      })
+    } finally {
+      setIsRunning(false)
     }
   }
 
@@ -656,8 +693,18 @@ const [showQuiz,                setShowQuiz]                 = useState(false)
     setInput('')
     addMsg({ type: 'user', text })
 
-    if (userType === 'professional') {
+    if (userType === 'professional' && !activeProjectId) {
       await runProFlow(text)
+      return
+    }
+
+    if (userType === 'professional' && activeProjectId) {
+      await runChatAgent(text)
+      return
+    }
+
+    if (activeProjectId) {
+      await runChatAgent(text)
       return
     }
 
@@ -829,6 +876,28 @@ const [showQuiz,                setShowQuiz]                 = useState(false)
         setSessionHistory([])
       } finally {
         setIsLoadingHistory(false)
+      }
+
+      // Auto-generate briefing for returning user
+      try {
+        const briefing = await getProjectBriefing(
+          project.id,
+          project.target_role || '',
+          project.purpose || 'portfolio',
+          userType,
+        )
+        if (briefing.success) {
+          setMessages([{
+            id: Math.random().toString(36).slice(2),
+            content: {
+              type:    'briefing',
+              text:    briefing.briefing,
+              sources: briefing.sources || [],
+            }
+          }])
+        }
+      } catch {
+        // briefing failed silently — user still sees empty chat
       }
     },
     onNewProject:     handleRethink,
@@ -1048,6 +1117,39 @@ const [showQuiz,                setShowQuiz]                 = useState(false)
         }}
         disabled={isRunning}
       />
+    )
+    if (content.type === 'briefing') return (
+      <div className="bg-[#161b22] border border-[#f0b429]/20 rounded-xl px-4 py-3 w-full">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-5 h-5 rounded-md bg-[#f0b429]/10 border border-[#f0b429]/20 flex items-center justify-center flex-shrink-0">
+            <span className="text-[#f0b429] text-xs font-bold">3</span>
+          </div>
+          <span className="text-xs font-mono text-amber-400">
+            Project Briefing
+          </span>
+        </div>
+        <p className="text-sm text-[#e6edf3] leading-relaxed whitespace-pre-wrap">
+          {content.text}
+        </p>
+        <p className="text-xs text-[#484f58] font-mono mt-2">
+          Type any question to continue →
+        </p>
+      </div>
+    )
+    if (content.type === 'agent_response') return (
+      <div className="bg-[#161b22] border border-[#30363d] rounded-xl px-4 py-3 w-full">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-5 h-5 rounded-md bg-[#f0b429]/10 border border-[#f0b429]/20 flex items-center justify-center flex-shrink-0">
+            <span className="text-[#f0b429] text-xs font-bold">3</span>
+          </div>
+          <span className="text-xs font-mono text-[#484f58]">
+            Agent · {content.sources?.join(', ') || 'project context'}
+          </span>
+        </div>
+        <p className="text-sm text-[#e6edf3] leading-relaxed whitespace-pre-wrap">
+          {content.text}
+        </p>
+      </div>
     )
 
     if (content.type === 'error') return (

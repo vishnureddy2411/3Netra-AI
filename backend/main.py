@@ -36,6 +36,7 @@ from routes import (
     council,
     pro_council,
     workflow,
+    chat_agent,
     diagrams,
     project_graph,
     ideas,
@@ -111,6 +112,7 @@ app.include_router(discuss.router,       prefix="/api")
 app.include_router(pro_council.router,   prefix="/api")
 app.include_router(workflow.router,      prefix="/api")
 app.include_router(quiz.router,          prefix="/api")
+app.include_router(chat_agent.router,    prefix="/api")
 # Auth + user project routes (JWT required)
 app.include_router(auth_routes.router,   prefix="/api")
 app.include_router(projects_db.router,   prefix="/api")
