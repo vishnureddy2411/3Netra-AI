@@ -78,3 +78,18 @@ export interface ChatMessage {
   content: any
   created_at: string
 }
+
+export interface StageMemory {
+  id:                 string
+  project_id:         string
+  user_id:            string
+  stage_name:         string
+  approved_decisions: string[]
+  rejected_ideas:     string[]
+  pending_questions:  string[]
+  important_context:  string
+  tech_stack:         string[]
+  summary:            string
+  updated_at:         string
+  created_at:         string
+}

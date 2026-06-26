@@ -64,7 +64,7 @@ import type {
   Diagram,
   GraphSummary,
 } from '../lib/types'
-
+import type { UserProject } from '../lib/supabase'
 // ─────────────────────────────────────────────
 // PIPELINE PROGRESS
 // ─────────────────────────────────────────────
@@ -170,8 +170,9 @@ const [showQuiz,                setShowQuiz]                 = useState(false)
           return
         }
 
-        const params    = new URLSearchParams(window.location.search)
-        const projectId = params.get('project')
+        const params      = new URLSearchParams(window.location.search)
+        const projectId   = params.get('project')
+        const viewSession = params.get('viewSession')
 
         if (projectId) {
           setDbProjectId(projectId)
@@ -193,6 +194,23 @@ const [showQuiz,                setShowQuiz]                 = useState(false)
               })
               setGateStep(5)
               addMsg({ type: 'chosen', choice: `→ Resumed: ${project.title}` })
+              if (viewSession) {
+                setViewingSession(viewSession)
+                setIsLoadingHistory(true)
+                try {
+                  const { getSessionMessages } = await import('../lib/projects')
+                  const msgs = await getSessionMessages(project.id, viewSession)
+                  const converted = msgs.map((m: any) => ({
+                    id: m.id,
+                    content: m.content as MessageContent,
+                  }))
+                  setSessionHistory(converted)
+                } catch {
+                  setSessionHistory([])
+                } finally {
+                  setIsLoadingHistory(false)
+                }
+              }
             }
           } catch (_e) {
             // ignore
@@ -280,6 +298,8 @@ const [showQuiz,                setShowQuiz]                 = useState(false)
       })
       setShowNewSession(true)
       setSidebarRefresh(prev => prev + 1)
+      // Force sidebar to reload sessions for this project
+      setTimeout(() => setSidebarRefresh(prev => prev + 1), 1000)
     } catch (err) {
       addMsg({ type: 'error', message: err instanceof Error ? err.message : 'Phase 2 failed' })
     } finally {
@@ -333,9 +353,135 @@ const [showQuiz,                setShowQuiz]                 = useState(false)
     }
   }
 
+  // ── New Stage Chat ────────────────────────────
+
+  const handleNewStageChat = async (project: UserProject, stageName: string) => {
+    // Load the project first
+    setDbProjectId(project.id)
+    setActiveProjectId(project.id)
+    setGateStep(5)
+    setMessages([])
+    setViewingSession(null)
+    setSessionHistory([])
+    setUserType(project.purpose === 'professional' ? 'professional' : 'student')
+
+    // Create new session in this stage
+    const stageNumbers: Record<string, number> = {
+      planning: 6, quiz: 7, code_gen: 8,
+      preview: 9, career: 10, qa: 11, deploy: 12,
+    }
+    const stageNumber = stageNumbers[stageName] || 6
+    const session = await createSession(project.id, stageNumber, stageName)
+    if (session) setActiveSessionId(session.id)
+
+    // Load stage memory and show briefing
+    const thinkId = addMsg({
+      type: 'thinking', stage: 'Agent',
+      message: `Loading ${stageName} stage memory...`,
+    })
+    setIsRunning(true)
+    try {
+      const { getStageMemory } = await import('../lib/api')
+      const memResult = await getStageMemory(project.id, stageName)
+      const memory    = memResult.memory || {}
+
+      const approved  = memory.approved_decisions || []
+      const rejected  = memory.rejected_ideas     || []
+      const pending   = memory.pending_questions  || []
+      const summary   = memory.summary            || ''
+
+      let briefing = `New chat — ${STAGE_LABELS[stageName] || stageName} stage\n\n`
+
+      if (summary) briefing += `Stage summary: ${summary}\n\n`
+
+      if (approved.length > 0) {
+        briefing += `Approved decisions:\n${approved.map((d: string) => `✓ ${d}`).join('\n')}\n\n`
+      }
+      if (rejected.length > 0) {
+        briefing += `Rejected ideas:\n${rejected.map((r: string) => `✗ ${r}`).join('\n')}\n\n`
+      }
+      if (pending.length > 0) {
+        briefing += `Pending questions:\n${pending.map((q: string) => `? ${q}`).join('\n')}\n\n`
+      }
+
+      if (!summary && approved.length === 0) {
+        briefing += `No previous decisions recorded for this stage yet. Ask any question to get started.`
+      } else {
+        briefing += `Ask any question to continue where you left off.`
+      }
+
+      updateMsg(thinkId, {
+        type:    'briefing',
+        text:    briefing,
+        sources: ['stage_memory'],
+      })
+    } catch {
+      updateMsg(thinkId, {
+        type:    'briefing',
+        text:    `New chat started in ${STAGE_LABELS[stageName] || stageName} stage. Ask any question to continue.`,
+        sources: [],
+      })
+    } finally {
+      setIsRunning(false)
+      setSidebarRefresh(prev => prev + 1)
+    }
+  }
+
+  const STAGE_LABELS: Record<string, string> = {
+    planning: 'Planning',
+    quiz:     'Quiz',
+    code_gen: 'Code Generation',
+    preview:  'Preview',
+    career:   'Career',
+    qa:       'QA & Testing',
+    deploy:   'Deployment',
+  }
+
   // ── Chat Agent ────────────────────────────────
 
   const runChatAgent = async (text: string) => {
+    const project = activeProjectId || dbProjectId || ''
+
+    // If viewing a session — responses go into sessionHistory
+    if (viewingSession) {
+      const thinkId = Math.random().toString(36).slice(2)
+      setSessionHistory(prev => [
+        ...prev,
+        { id: thinkId, content: { type: 'thinking' as const, stage: 'Agent', message: 'Reading project context...' } },
+      ])
+      setIsRunning(true)
+      try {
+        const r = await sendChatMessage(
+          project,
+          text,
+          [],
+          intakeData || { purpose: userType === 'professional' ? 'professional' : 'portfolio', role: gateData.role, originalMessage: text },
+          userType,
+          activeStage || 'planning',
+          activeSessionId || '',
+        )
+        setSessionHistory(prev => prev.map(m =>
+          m.id === thinkId
+            ? { ...m, content: { type: 'agent_response' as const, text: r.response, sources: r.sources || [] } }
+            : m
+        ))
+        // Refresh sidebar if session title was updated
+        if (r.title_updated) {
+          setSidebarRefresh(prev => prev + 1)
+        }
+      } catch {
+        setSessionHistory(prev => prev.map(m =>
+          m.id === thinkId
+            ? { ...m, content: { type: 'error' as const, message: 'Agent failed to respond.' } }
+            : m
+        ))
+      } finally {
+        setIsRunning(false)
+      }
+      return
+    }
+
+    // Normal flow — responses go into messages
     const thinkId = addMsg({
       type: 'thinking', stage: 'Agent',
       message: 'Reading project context and preparing response...',
@@ -350,14 +496,19 @@ const [showQuiz,                setShowQuiz]                 = useState(false)
           content: (m.content as any).text || '',
         }))
       const r = await sendChatMessage(
-        activeProjectId || '',
+        project,
         text,
         history,
         intakeData || { purpose: userType === 'professional' ? 'professional' : 'portfolio', role: gateData.role, originalMessage: text },
         userType,
         activeStage || '',
+        activeSessionId || '',
       )
       updateMsg(thinkId, { type: 'agent_response', text: r.response, sources: r.sources || [] })
+      // Refresh sidebar if session title was updated
+      if (r.title_updated) {
+        setSidebarRefresh(prev => prev + 1)
+      }
     } catch (err) {
       updateMsg(thinkId, {
         type: 'error',
@@ -381,13 +532,13 @@ const [showQuiz,                setShowQuiz]                 = useState(false)
     try {
       const projectId = `pro-${Date.now()}`
       const role      = gateData.role || 'Software Engineer'
+      setActiveProjectId(projectId)
 
-      const r1 = await runProCouncil(projectId, context ? `${task}\n\nBLOCKER RESOLUTIONS:\n${context}` : task, role)
-      const verdict = r1.result?.verdict || {}
+      const r1          = await runProCouncil(projectId, context ? `${task}\n\nBLOCKER RESOLUTIONS:\n${context}` : task, role)
+      const verdict      = r1.result?.verdict || {}
       const agentOutputs = r1.result?.agent_outputs || []
 
       setProCouncilResult({ verdict, agentOutputs, task, projectId })
-
       updateMsg(thinkId, {
         type:         'pro_council',
         verdict,
@@ -687,24 +838,56 @@ const [showQuiz,                setShowQuiz]                 = useState(false)
 
   // ── Send ──────────────────────────────────────
 
-  const handleSend = async () => {
+ const handleSend = async () => {
     if (!input.trim() || isRunning || gateStep < 5) return
-    const text = input.trim()
+    const text    = input.trim()
+    const project = activeProjectId || dbProjectId || ''
     setInput('')
     addMsg({ type: 'user', text })
 
-    if (userType === 'professional' && !activeProjectId) {
+    if (project) {
+      // Viewing a session — responses must go into sessionHistory not messages
+      if (viewingSession) {
+        const userMsgId = Math.random().toString(36).slice(2)
+        const thinkId   = Math.random().toString(36).slice(2)
+        setSessionHistory(prev => [
+          ...prev,
+          { id: userMsgId, content: { type: 'user', text } },
+          { id: thinkId,   content: { type: 'thinking', stage: 'Agent', message: 'Thinking...' } },
+        ])
+        setIsRunning(true)
+        try {
+          const r = await sendChatMessage(
+            project,
+            text,
+            [],
+            intakeData || { purpose: userType === 'professional' ? 'professional' : 'portfolio', role: gateData.role, originalMessage: text },
+            userType,
+            activeStage || 'planning',
+            activeSessionId || '',
+          )
+          setSessionHistory(prev => prev.map(m =>
+            m.id === thinkId
+              ? { ...m, content: { type: 'agent_response', text: r.response, sources: r.sources || [] } }
+              : m
+          ))
+        } catch (err) {
+          setSessionHistory(prev => prev.map(m =>
+            m.id === thinkId
+              ? { ...m, content: { type: 'error', message: 'Agent failed to respond.' } }
+              : m
+          ))
+        } finally {
+          setIsRunning(false)
+        }
+        return
+      }
+      await runChatAgent(text)
+      return
+    }
+
+    if (userType === 'professional') {
       await runProFlow(text)
-      return
-    }
-
-    if (userType === 'professional' && activeProjectId) {
-      await runChatAgent(text)
-      return
-    }
-
-    if (activeProjectId) {
-      await runChatAgent(text)
       return
     }
 
@@ -790,6 +973,10 @@ const [showQuiz,                setShowQuiz]                 = useState(false)
   // ── Reset ─────────────────────────────────────
 
   const handleRethink = () => {
+    if (messages.length > 0 || isRunning || userType === 'professional') {
+      const confirmed = window.confirm('Starting a new project will end your current session. Any unsaved progress will be lost. Continue?')
+      if (!confirmed) return
+    }
     setMessages([])
     setInput('')
     setIsRunning(false)
@@ -851,10 +1038,12 @@ const [showQuiz,                setShowQuiz]                 = useState(false)
     activeSessionId,
     refreshTrigger:   sidebarRefresh,
     onProjectSelect:  (_project: any) => {},
+    onNewStageChat:   handleNewStageChat,
     onSessionSelect:  async (project: any, sessionId: string) => {
       setCameFromGate(gateStep < 5)
       setGateStep(5)
       setDbProjectId(project.id)
+      setActiveProjectId(project.id)
       setGateData({
         project_type: 'existing',
         role:         project.target_role || '',
@@ -863,6 +1052,8 @@ const [showQuiz,                setShowQuiz]                 = useState(false)
       })
       setMessages([])
       setViewingSession(sessionId)
+      setActiveSessionId(sessionId)
+      setSessionHistory([])
       setIsLoadingHistory(true)
       try {
         const { getSessionMessages } = await import('../lib/projects')
@@ -1324,13 +1515,21 @@ const [showQuiz,                setShowQuiz]                 = useState(false)
                     </button>
                     <button
                       onClick={() => {
+                        window.open(`/project/${dbProjectId}`, '_blank', 'noopener,noreferrer')
+                      }}
+                      className="text-xs px-3 py-1.5 bg-[#161b22] border border-[#30363d] text-[#484f58] hover:text-[#e6edf3] hover:border-[#484f58] rounded-lg transition-colors font-mono"
+                    >
+                      View Dashboard ↗
+                    </button>
+                    <button
+                      onClick={() => {
                         setViewingSession(null)
                         setSessionHistory([])
                         handleStartNewSession()
                       }}
                       className="text-xs px-3 py-1.5 bg-[#f0b429] text-[#0d1117] font-semibold rounded-lg hover:bg-[#e0a419] transition-colors"
                     >
-                      Resume Project →
+                      New Session →
                     </button>
                   </div>
                 </div>
@@ -1395,16 +1594,16 @@ const [showQuiz,                setShowQuiz]                 = useState(false)
                 placeholder={
                   gateStep < 5 ? 'Complete the setup above first...'
                   : pendingProject ? 'Confirm or discuss your selected project above first...'
-                  : viewingSession ? 'Resume project to continue chatting...'
+                  : viewingSession ? 'Ask a question about this session...'
                   : 'Describe a project, ask about architecture, debug code, plan your career...'
                 }
-                disabled={isRunning || gateStep < 5 || !!pendingProject || isDiscussing || !!viewingSession}
+                disabled={isRunning || gateStep < 5 || !!pendingProject || isDiscussing}
                 rows={2}
                 className="flex-1 bg-transparent text-sm text-[#e6edf3] placeholder-[#484f58] outline-none resize-none leading-relaxed disabled:opacity-40"
               />
               <div className="flex flex-col justify-end">
                 <button onClick={handleSend}
-                  disabled={isRunning || !input.trim() || gateStep < 5 || !!pendingProject || isDiscussing || !!viewingSession}
+                  disabled={isRunning || !input.trim() || gateStep < 5 || !!pendingProject || isDiscussing}
                   className="px-4 py-2 bg-[#f0b429] text-[#0d1117] font-semibold rounded-lg hover:bg-[#e0a419] disabled:opacity-30 disabled:cursor-not-allowed transition-all text-sm">
                   {isRunning ? (
                     <span className="flex items-center gap-1">
@@ -1429,6 +1628,48 @@ const [showQuiz,                setShowQuiz]                 = useState(false)
         content={previewContent}
         onClose={() => setPreviewContent(null)}
       />
+
+      {/* Debug Panel — development only */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="fixed bottom-4 right-4 z-50">
+          <details className="bg-[#0d1117] border border-[#f0b429]/30 rounded-xl overflow-hidden shadow-2xl">
+            <summary className="px-3 py-2 text-xs font-mono text-[#f0b429] cursor-pointer hover:bg-[#161b22] transition-colors">
+              🔍 Debug Panel
+            </summary>
+            <div className="px-3 py-2 space-y-1 min-w-48">
+              {[
+                { label: 'gateStep',        value: gateStep },
+                { label: 'userType',        value: userType },
+                { label: 'activeProjectId', value: activeProjectId || 'null' },
+                { label: 'dbProjectId',     value: dbProjectId || 'null' },
+                { label: 'activeSessionId', value: activeSessionId || 'null' },
+                { label: 'viewingSession',  value: viewingSession || 'null' },
+                { label: 'messages',        value: messages.length },
+                { label: 'sessionHistory',  value: sessionHistory.length },
+                { label: 'isRunning',       value: String(isRunning) },
+                { label: 'selectionMade',   value: String(selectionMade) },
+                { label: 'isDiscussing',    value: String(isDiscussing) },
+              ].map(item => (
+                <div key={item.label} className="flex items-center justify-between gap-4">
+                  <span className="text-xs font-mono text-[#484f58]">{item.label}</span>
+                  <span className={`text-xs font-mono ${
+                    item.value === 'null' || item.value === 'false' || item.value === 0
+                      ? 'text-[#30363d]'
+                      : item.value === 'true'
+                      ? 'text-emerald-400'
+                      : 'text-amber-400'
+                  }`}>
+                    {String(item.value).length > 20
+                      ? String(item.value).slice(0, 20) + '...'
+                      : String(item.value)
+                    }
+                  </span>
+                </div>
+              ))}
+            </div>
+          </details>
+        </div>
+      )}
     </div>
   )
 }

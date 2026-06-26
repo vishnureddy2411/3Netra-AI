@@ -612,7 +612,93 @@ def get_diagrams(project_id: str) -> str:
         ).fetchall()
     return json.dumps([dict(r) for r in rows])
 
+# ════════════════════════════════════════════════════════════
+# STAGE MEMORY TOOLS
+# ════════════════════════════════════════════════════════════
 
+@mcp.tool()
+def get_stage_memory(project_id: str, stage_name: str) -> str:
+    """
+    Returns the stage memory for a specific project stage.
+    Contains approved decisions, rejected ideas, pending questions,
+    and important context from all previous sessions in this stage.
+    Called by chat agent at the start of every new session.
+    """
+    import os
+    from supabase import create_client
+
+    try:
+        url = os.getenv("SUPABASE_URL", "").replace("/rest/v1", "").rstrip("/")
+        key = os.getenv("SUPABASE_KEY", "")
+        sb  = create_client(url, key)
+
+        result = sb.table("stage_memory")\
+            .select("*")\
+            .eq("project_id", project_id)\
+            .eq("stage_name", stage_name)\
+            .single()\
+            .execute()
+
+        if result.data:
+            return json.dumps(result.data)
+        return json.dumps({
+            "approved_decisions": [],
+            "rejected_ideas":     [],
+            "pending_questions":  [],
+            "important_context":  "",
+            "tech_stack":         [],
+            "summary":            "",
+        })
+    except Exception as e:
+        logger.warning(f"get_stage_memory failed: {e}")
+        return json.dumps({})
+
+
+@mcp.tool()
+def save_stage_memory(
+    project_id:         str,
+    stage_name:         str,
+    user_id:            str,
+    approved_decisions: str = "[]",
+    rejected_ideas:     str = "[]",
+    pending_questions:  str = "[]",
+    important_context:  str = "",
+    tech_stack:         str = "[]",
+    summary:            str = "",
+) -> str:
+    """
+    Saves or updates stage memory after important decisions are made.
+    Called after every session where key decisions were approved or rejected.
+    Uses upsert — creates if not exists, updates if exists.
+    approved_decisions, rejected_ideas, pending_questions, tech_stack
+    must be JSON strings of arrays.
+    """
+    import os
+    from supabase import create_client
+
+    try:
+        url = os.getenv("SUPABASE_URL", "").replace("/rest/v1", "").rstrip("/")
+        key = os.getenv("SUPABASE_KEY", "")
+        sb  = create_client(url, key)
+
+        sb.table("stage_memory").upsert({
+            "project_id":         project_id,
+            "stage_name":         stage_name,
+            "user_id":            user_id,
+            "approved_decisions": json.loads(approved_decisions),
+            "rejected_ideas":     json.loads(rejected_ideas),
+            "pending_questions":  json.loads(pending_questions),
+            "important_context":  important_context,
+            "tech_stack":         json.loads(tech_stack),
+            "summary":            summary,
+            "updated_at":         datetime.utcnow().isoformat(),
+        }, on_conflict="project_id,stage_name").execute()
+
+        logger.info(f"Stage memory saved: {project_id}/{stage_name}")
+        return json.dumps({"success": True})
+    except Exception as e:
+        logger.error(f"save_stage_memory failed: {e}")
+        return json.dumps({"success": False, "error": str(e)})
 # ════════════════════════════════════════════════════════════
 # SKILL TOOLS
 # ════════════════════════════════════════════════════════════
@@ -793,3 +879,91 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=port,
     )
+
+# ════════════════════════════════════════════════════════════
+# STAGE MEMORY TOOLS
+# ════════════════════════════════════════════════════════════
+
+@mcp.tool()
+def get_stage_memory(project_id: str, stage_name: str) -> str:
+    """
+    Returns the stage memory for a specific project stage.
+    Contains approved decisions, rejected ideas, pending questions,
+    and important context from all previous sessions in this stage.
+    Called by chat agent at the start of every new session.
+    """
+    import os
+    from supabase import create_client
+
+    try:
+        url = os.getenv("SUPABASE_URL", "").replace("/rest/v1", "").rstrip("/")
+        key = os.getenv("SUPABASE_KEY", "")
+        sb  = create_client(url, key)
+
+        result = sb.table("stage_memory")\
+            .select("*")\
+            .eq("project_id", project_id)\
+            .eq("stage_name", stage_name)\
+            .single()\
+            .execute()
+
+        if result.data:
+            return json.dumps(result.data)
+        return json.dumps({
+            "approved_decisions": [],
+            "rejected_ideas":     [],
+            "pending_questions":  [],
+            "important_context":  "",
+            "tech_stack":         [],
+            "summary":            "",
+        })
+    except Exception as e:
+        logger.warning(f"get_stage_memory failed: {e}")
+        return json.dumps({})
+
+
+@mcp.tool()
+def save_stage_memory(
+    project_id:         str,
+    stage_name:         str,
+    user_id:            str,
+    approved_decisions: str = "[]",
+    rejected_ideas:     str = "[]",
+    pending_questions:  str = "[]",
+    important_context:  str = "",
+    tech_stack:         str = "[]",
+    summary:            str = "",
+) -> str:
+    """
+    Saves or updates stage memory after important decisions are made.
+    Called after every session where key decisions were approved or rejected.
+    Uses upsert — creates if not exists, updates if exists.
+    approved_decisions, rejected_ideas, pending_questions, tech_stack
+    must be JSON strings of arrays.
+    """
+    import os
+    from supabase import create_client
+
+    try:
+        url = os.getenv("SUPABASE_URL", "").replace("/rest/v1", "").rstrip("/")
+        key = os.getenv("SUPABASE_KEY", "")
+        sb  = create_client(url, key)
+
+        sb.table("stage_memory").upsert({
+            "project_id":         project_id,
+            "stage_name":         stage_name,
+            "user_id":            user_id,
+            "approved_decisions": json.loads(approved_decisions),
+            "rejected_ideas":     json.loads(rejected_ideas),
+            "pending_questions":  json.loads(pending_questions),
+            "important_context":  important_context,
+            "tech_stack":         json.loads(tech_stack),
+            "summary":            summary,
+            "updated_at":         datetime.utcnow().isoformat(),
+        }, on_conflict="project_id,stage_name").execute()
+
+        logger.info(f"Stage memory saved: {project_id}/{stage_name}")
+        return json.dumps({"success": True})
+    except Exception as e:
+        logger.error(f"save_stage_memory failed: {e}")
+        return json.dumps({"success": False, "error": str(e)})

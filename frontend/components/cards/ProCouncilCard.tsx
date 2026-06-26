@@ -30,6 +30,7 @@ interface ProVerdictData {
   minority_dissent:       string | null
   clarifying_questions:   string[]
   first_action:           string
+  resolved_assumptions?: { blocker: string; assumption: string }[]
 }
 
 interface Props {
@@ -125,14 +126,38 @@ export default function ProCouncilCard({
         </p>
       </div>
       {/* Resolved assumptions banner */}
-      {resolvedContext && (
+      {(resolvedContext || (verdict?.resolved_assumptions?.length > 0)) && (
         <div className="px-4 py-3 border-b border-[#21262d] bg-emerald-400/5">
-          <div className="text-xs font-mono text-emerald-400 uppercase tracking-widest mb-2">
-            ✓ Re-analyzed with Your Input
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
+            <div className="text-xs font-mono text-emerald-400 uppercase tracking-widest">
+              Agent Resolved These Blockers
+            </div>
           </div>
-          <p className="text-xs text-[#8b949e] leading-relaxed whitespace-pre-wrap">
-            {resolvedContext}
-          </p>
+          {verdict?.resolved_assumptions?.length > 0 ? (
+            <div className="space-y-2">
+              {verdict.resolved_assumptions.map((item, i) => (
+                <div key={i} className="border border-emerald-400/10 rounded-lg p-2.5 bg-[#0d1117]">
+                  <div className="text-xs font-mono text-[#484f58] mb-1">
+                    Blocker: <span className="text-[#e6edf3]">{item.blocker}</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-emerald-400 text-xs flex-shrink-0 mt-0.5">→</span>
+                    <p className="text-xs text-emerald-400/80 leading-relaxed">{item.assumption}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {resolvedContext?.split('\n').filter(l => l.trim()).map((line, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <span className="text-emerald-400/50 text-xs mt-0.5 flex-shrink-0">→</span>
+                  <p className="text-xs text-[#8b949e] leading-relaxed">{line.trim()}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
       {/* Executive Summary */}

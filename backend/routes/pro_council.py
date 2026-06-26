@@ -360,7 +360,11 @@ Return ONLY valid JSON matching this exact schema:
             f"these are YOUR decisions. Put them in the execution_plan, not in blocking_issues.\n"
             f"If you have enough information to make a technical decision, MAKE IT. "
             f"Only block when you genuinely cannot proceed without input from the user.\n\n"
-            f"Cite at least 2 specific agents by name in your reasoning. "
+            f"Cite at least 2 specific agents by name in your reasoning.\n\n"
+            f"CRITICAL: If the context contains 'BLOCKER RESOLUTIONS' or agent-made assumptions, "
+            f"extract each assumption into the 'resolved_assumptions' field as a list of objects "
+            f"with 'blocker' and 'assumption' keys. This shows users exactly what was decided "
+            f"on their behalf.\n\n"
             f"Return ONLY valid JSON."
             ),
             max_tokens=2500,

@@ -375,15 +375,17 @@ export async function sendChatMessage(
   intake:    IntakeData,
   userType:  string,
   stage?:    string,
+  sessionId?: string,
 ) {
   return apiPost('chat', {
     project_id: projectId,
     message,
     history,
-    role:      intake.role || 'Software Engineer',
-    purpose:   intake.purpose || 'portfolio',
-    user_type: userType,
-    stage:     stage || '',
+    role:       intake.role || 'Software Engineer',
+    purpose:    intake.purpose || 'portfolio',
+    user_type:  userType,
+    stage:      stage || '',
+    session_id: sessionId || '',
   })
 }
 // ── Project Briefing ──────────────────────────────────────────────────────────
@@ -400,4 +402,28 @@ export async function getProjectBriefing(
     purpose,
     user_type:  userType,
   })
+}
+
+// ── Stage Memory ──────────────────────────────────────────────────────────────
+
+export async function getStageMemory(
+  projectId: string,
+  stageName: string,
+) {
+  return apiGet(`projects/${projectId}/stages/${stageName}/memory`)
+}
+
+export async function saveStageMemory(
+  projectId: string,
+  stageName: string,
+  memory: {
+    approved_decisions: string[]
+    rejected_ideas:     string[]
+    pending_questions:  string[]
+    important_context:  string
+    tech_stack:         string[]
+    summary:            string
+  },
+) {
+  return apiPost(`projects/${projectId}/stages/${stageName}/memory`, memory)
 }

@@ -60,5 +60,12 @@ output_contract:
       "confidence_score": 8,
       "minority_dissent": "If any agent raised a concern the majority dismissed — state it here honestly",
       "clarifying_questions": ["Question 1 that needs an answer before full implementation", "Question 2"],
-      "first_action": "The single next thing the engineer should do after reading this — specific and actionable"
+      "first_action": "The single next thing the engineer should do after reading this — specific and actionable",
+      "resolved_assumptions": [
+        {
+          "blocker": "What the missing information was",
+          "assumption": "What the agent decided to assume and why — specific decision with reasoning"
+        }
+      ]
     }
+    

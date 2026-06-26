@@ -35,11 +35,51 @@ class ChatRequest(BaseModel):
     purpose:     Optional[str]  = "portfolio"
     user_type:   Optional[str]  = "student"
     stage:       Optional[str]  = ""
+    session_id:  Optional[str]  = ""
 
 
 # ── MCP context reader ────────────────────────────────────────────────────────
+async def _read_session_messages(session_id: str, limit: int = 5) -> list:
+    """
+    Reads the last N messages from a specific session.
+    Used to give the agent immediate context about what was
+    discussed in that particular session.
+    """
+    if not session_id:
+        return []
+    try:
+        import os
+        from supabase import create_client
+        url = os.getenv("SUPABASE_URL", "").replace("/rest/v1", "").rstrip("/")
+        key = os.getenv("SUPABASE_KEY", "")
+        sb  = create_client(url, key)
 
-async def _read_project_context(project_id: str) -> dict:
+        result = sb.table("project_chat_history")\
+            .select("role, content, created_at")\
+            .eq("session_id", session_id)\
+            .order("created_at", desc=True)\
+            .limit(limit)\
+            .execute()
+
+        messages = result.data or []
+        messages.reverse()
+        return messages
+    except Exception as e:
+        logger.warning(f"Could not read session messages: {e}")
+        return []
+    
+async def _read_project_context(project_id: str, stage: str = "planning") -> dict:
+    context: dict = {
+        "stage":        stage,
+        "plan":         {},
+        "verdict":      {},
+        "graph":        {},
+        "diagrams":     [],
+        "decisions":    [],
+        "files":        [],
+        "build_status": [],
+        "stage_memory": {},
+    }
     """
     Reads all available project context from MCP.
     Returns a structured dict of everything the agent needs to answer questions.
@@ -60,17 +100,59 @@ async def _read_project_context(project_id: str) -> dict:
     try:
         async with Client("http://localhost:8001/mcp") as mcp:
 
-            # Project plan
+            # Stage memory
             try:
-                r = await mcp.call_tool("get_project_plan", {"project_id": project_id})
+                stage = context.get("stage", "planning")
+                r = await mcp.call_tool("get_stage_memory", {
+                    "project_id": project_id,
+                    "stage_name": stage,
+                })
                 raw = r[0].text if r else "{}"
-                context["plan"] = json.loads(raw) if raw else {}
+                context["stage_memory"] = json.loads(raw) if raw else {}
             except Exception:
                 pass
 
+            # Session messages — last 5 from this specific session
+            try:
+                session_id = context.get("session_id", "")
+                if session_id:
+                    context["session_messages"] = await _read_session_messages(session_id, limit=5)
+            except Exception:
+                pass
+
+            # Project plan — try Supabase UUID first, then internal MCP ID
+            try:
+                r = await mcp.call_tool("get_project_plan", {"project_id": project_id})
+                raw = r[0].text if r else "{}"
+                plan = json.loads(raw) if raw else {}
+                # If not found, try reading internal_project_id from Supabase
+                if not plan or plan.get("error"):
+                    import os
+                    from supabase import create_client
+                    url = os.getenv("SUPABASE_URL", "").replace("/rest/v1", "").rstrip("/")
+                    key = os.getenv("SUPABASE_KEY", "")
+                    sb  = create_client(url, key)
+                    result = sb.table("user_projects")\
+                        .select("internal_project_id")\
+                        .eq("id", project_id)\
+                        .single()\
+                        .execute()
+                    if result.data and result.data.get("internal_project_id"):
+                        mcp_id = result.data["internal_project_id"]
+                        context["mcp_project_id"] = mcp_id
+                        r2 = await mcp.call_tool("get_project_plan", {"project_id": mcp_id})
+                        raw2 = r2[0].text if r2 else "{}"
+                        plan = json.loads(raw2) if raw2 else {}
+                context["plan"] = plan
+            except Exception:
+                pass
+
+            # Use MCP project ID if found — else fall back to Supabase UUID
+            mcp_id = context.get("mcp_project_id", project_id)
+
             # Council verdict
             try:
-                r = await mcp.call_tool("get_council_verdict", {"project_id": project_id})
+                r = await mcp.call_tool("get_council_verdict", {"project_id": mcp_id})
                 raw = r[0].text if r else "{}"
                 context["verdict"] = json.loads(raw) if raw else {}
             except Exception:
@@ -78,7 +160,7 @@ async def _read_project_context(project_id: str) -> dict:
 
             # Project graph
             try:
-                r = await mcp.call_tool("get_project_graph", {"project_id": project_id})
+                r = await mcp.call_tool("get_project_graph", {"project_id": mcp_id})
                 raw = r[0].text if r else "{}"
                 context["graph"] = json.loads(raw) if raw else {}
             except Exception:
@@ -86,7 +168,7 @@ async def _read_project_context(project_id: str) -> dict:
 
             # Diagrams
             try:
-                r = await mcp.call_tool("get_diagrams", {"project_id": project_id})
+                r = await mcp.call_tool("get_diagrams", {"project_id": mcp_id})
                 raw = r[0].text if r else "[]"
                 context["diagrams"] = json.loads(raw) if raw else []
             except Exception:
@@ -95,7 +177,7 @@ async def _read_project_context(project_id: str) -> dict:
             # Past decisions
             try:
                 r = await mcp.call_tool("recall_decisions", {
-                    "project_id": project_id,
+                    "project_id": mcp_id,
                     "query": "all",
                     "limit": 10,
                 })
@@ -103,7 +185,6 @@ async def _read_project_context(project_id: str) -> dict:
                 context["decisions"] = json.loads(raw) if raw else []
             except Exception:
                 pass
-
             # Existing files
             try:
                 r = await mcp.call_tool("get_existing_files", {"project_id": project_id})
@@ -172,6 +253,50 @@ def _build_system_prompt(
         for d in decisions[:8]
     ]) if decisions else "No decisions recorded yet."
 
+    
+    # Stage memory
+    stage_mem          = context.get("stage_memory", {})
+    approved_decisions = stage_mem.get("approved_decisions", [])
+    rejected_ideas     = stage_mem.get("rejected_ideas",     [])
+    pending_questions  = stage_mem.get("pending_questions",  [])
+    stage_summary      = stage_mem.get("summary",            "")
+    stage_tech         = stage_mem.get("tech_stack",         [])
+
+    stage_memory_text = ""
+    if any([approved_decisions, rejected_ideas, pending_questions, stage_summary]):
+        stage_memory_text = f"""
+## Stage Memory — {stage or 'planning'} Stage
+This is a summary of all important decisions made in previous sessions of this stage.
+Use this instead of asking the user to repeat themselves.
+
+Approved decisions:
+{chr(10).join(f'  ✓ {d}' for d in approved_decisions) if approved_decisions else '  None yet'}
+
+Rejected ideas:
+{chr(10).join(f'  ✗ {r}' for r in rejected_ideas) if rejected_ideas else '  None yet'}
+
+Pending questions:
+{chr(10).join(f'  ? {q}' for q in pending_questions) if pending_questions else '  None yet'}
+
+Stage summary: {stage_summary or 'Not summarized yet'}
+"""
+# Session messages — last 5 from this specific session
+    session_messages = context.get("session_messages", [])
+    session_context  = ""
+    if session_messages:
+        session_context = "\n## Recent Session Context\n"
+        session_context += "Last messages from this specific session:\n"
+        for msg in session_messages:
+            content = msg.get("content", {})
+            role    = msg.get("role", "unknown")
+            if isinstance(content, dict):
+                text = content.get("text", "") or content.get("message", "")
+            else:
+                text = str(content)
+            if text:
+                label = "User" if role == "user" else "Agent"
+                session_context += f"{label}: {text[:200]}\n"
+                
     # Files built so far
     files_text = "\n".join([
         f"- {f.get('file_path')} ({f.get('language')})"
@@ -231,23 +356,48 @@ DIAGRAMS GENERATED: {", ".join(diagram_types) if diagram_types else "None yet"}
 
 PAST DECISIONS:
 {decisions_text}
+{stage_memory_text}
+{session_context}
 
 FILES GENERATED SO FAR:
 {files_text}
 
-BEHAVIOR RULES:
-1. Answer the SPECIFIC question asked — do not give a lecture
-2. Reference actual project components by name — not generic examples
-3. If the user asks about something not in the context, say so honestly
-4. Keep responses focused — under 200 words unless the question requires depth
-5. If the user wants to change something, explain the impact on the existing architecture
-6. For technical questions, give code examples using the ACTUAL tech stack ({stack_text})
-7. For career questions, reference the actual project and actual {role} requirements
-8. Never say "it depends" — give a specific answer for this specific project
-9. If asked about a diagram, explain it in plain language referencing the actual components
-10. If the user is confused, simplify without losing accuracy"""
+YOUR ROLE:
+You are a senior AI engineering team member — the smartest engineer on this developer's team.
+You have full access to their project context above.
+You think, reason, and respond like a real human senior engineer with 10+ years experience.
+
+YOUR SKILLS — you are expert in all of these:
+- System design and architecture — design scalable, production-grade systems
+- Full stack development — React, Next.js, FastAPI, Django, Express, any framework
+- Database design — PostgreSQL, MongoDB, Redis, schema design, query optimization
+- API design — REST, GraphQL, WebSockets, authentication, rate limiting
+- AI and ML engineering — LLMs, RAG, embeddings, fine-tuning, agents, pipelines
+- Data engineering — ETL, pipelines, Kafka, Spark, Airflow, dbt, data modeling
+- DevOps — Docker, Kubernetes, CI/CD, GitHub Actions, Railway, Vercel, AWS, GCP
+- Security — auth, JWT, OAuth, RBAC, encryption, OWASP, vulnerability assessment
+- Code review — spot bugs, performance issues, security holes, bad patterns
+- Debugging — trace errors, identify root causes, fix issues
+- Career guidance — resume bullets, interview preparation, portfolio strategy
+- Project planning — scope, timeline, priorities, MVP definition, roadmap
+- Code generation — write complete, production-ready code in any language
+- Testing — unit tests, integration tests, E2E tests, test strategies
+- Performance optimization — profiling, caching, indexing, load testing
+
+HOW YOU RESPOND:
+- Answer anything the user asks — no topic is off limits
+- Use project context when the question is about this specific project
+- Use your engineering knowledge when the question is general
+- Write actual code when asked — complete, working, production-ready
+- Give specific answers — never vague or generic
+- Think step by step for complex problems
+- Be direct — no unnecessary preamble
+- Match response length to question complexity — short answers for simple questions, detailed for complex ones
+- If you disagree with a decision, say so clearly and explain why
+- Treat the user as an intelligent developer — no hand-holding unless asked"""
 
     return prompt
+
 
 
 # ── Main endpoint ─────────────────────────────────────────────────────────────
@@ -266,14 +416,31 @@ async def chat_with_agent(request: Request, body: ChatRequest):
     try:
         from services.llm_client import call_strong
 
-        logger.info(
-            f"Chat agent — project: {body.project_id} | "
-            f"user_type: {body.user_type} | "
-            f"message: {body.message[:60]}"
-        )
+        logger.info("=" * 60)
+        logger.info(f"CHAT REQUEST RECEIVED")
+        logger.info(f"  project_id:  {body.project_id}")
+        logger.info(f"  session_id:  {body.session_id}")
+        logger.info(f"  stage:       {body.stage}")
+        logger.info(f"  user_type:   {body.user_type}")
+        logger.info(f"  role:        {body.role}")
+        logger.info(f"  message:     {body.message[:100]}")
+        logger.info(f"  history len: {len(body.history or [])}")
+        logger.info("=" * 60)
 
         # Read full project context from MCP
-        context = await _read_project_context(body.project_id)
+        logger.info(f"LOADING MCP CONTEXT for project: {body.project_id}")
+        context = await _read_project_context(body.project_id, body.stage or "planning")
+        context["session_id"] = body.session_id or ""
+        context["session_messages"] = await _read_session_messages(body.session_id or "", limit=5)
+
+        logger.info(f"MCP CONTEXT LOADED:")
+        logger.info(f"  plan found:          {bool(context.get('plan'))}")
+        logger.info(f"  verdict found:       {bool(context.get('verdict'))}")
+        logger.info(f"  graph found:         {bool(context.get('graph'))}")
+        logger.info(f"  diagrams count:      {len(context.get('diagrams', []))}")
+        logger.info(f"  decisions count:     {len(context.get('decisions', []))}")
+        logger.info(f"  stage_memory found:  {bool(context.get('stage_memory'))}")
+        logger.info(f"  session_messages:    {len(context.get('session_messages', []))}")
 
         # Build system prompt with full context
         system_prompt = _build_system_prompt(
@@ -320,16 +487,59 @@ async def chat_with_agent(request: Request, body: ChatRequest):
         except Exception:
             pass
 
-        logger.info(
-            f"Chat agent response — "
-            f"length: {len(response)} chars | "
-            f"sources: {sources}"
-        )
+        logger.info(f"AGENT RESPONSE GENERATED:")
+        logger.info(f"  length:  {len(response)} chars")
+        logger.info(f"  sources: {sources}")
+        logger.info(f"  preview: {response[:100]}")
+        logger.info("=" * 60)
+        # Update session title based on first message
+        try:
+            if body.message and len(body.message) > 5:
+                import os
+                from supabase import create_client
+                sb_url = os.getenv("SUPABASE_URL", "").replace("/rest/v1", "").rstrip("/")
+                sb_key = os.getenv("SUPABASE_KEY", "")
+                sb     = create_client(sb_url, sb_key)
+
+                # Only update if title is still default
+                existing_session = sb.table("project_sessions")\
+                    .select("id, title, message_count")\
+                    .eq("id", body.session_id or "")\
+                    .single()\
+                    .execute()
+
+                if existing_session.data and is_default_title:
+                    # Generate meaningful title from first question
+                    title_words = body.message.strip()[:60]
+                    if len(body.message) > 60:
+                        title_words = title_words + "..."
+                    sb.table("project_sessions")\
+                        .update({"title": title_words})\
+                        .eq("id", body.session_id or "")\
+                        .execute()
+                    context["session_title_updated"] = True
+                    context["new_session_title"] = title_words
+        except Exception:
+            pass
+        # Update stage memory asynchronously — non-blocking
+        import asyncio
+        user_id = user.get("id", "") or user.get("sub", "") or ""
+        if user_id:
+            asyncio.create_task(_update_stage_memory(
+                project_id = body.project_id,
+                stage_name = body.stage or "planning",
+                user_id    = user_id,
+                question   = body.message,
+                answer     = response.strip(),
+                existing   = context.get("stage_memory", {}),
+            ))
 
         return JSONResponse({
-            "success":  True,
-            "response": response.strip(),
-            "sources":  sources,
+            "success":        True,
+            "response":       response.strip(),
+            "sources":        sources,
+            "title_updated":  context.get("session_title_updated", False),
+            "new_title":      context.get("new_session_title", ""),
         })
 
     except Exception as e:
@@ -351,7 +561,90 @@ class BriefingRequest(BaseModel):
     purpose:    Optional[str] = "portfolio"
     user_type:  Optional[str] = "student"
 
+async def _update_stage_memory(
+    project_id: str,
+    stage_name: str,
+    user_id:    str,
+    question:   str,
+    answer:     str,
+    existing:   dict,
+) -> None:
+    """
+    After every agent response, extracts key decisions and updates stage memory.
+    Uses a fast LLM call to classify what was decided, rejected, or is pending.
+    Non-blocking — failure does not affect the user response.
+    """
+    try:
+        from services.llm_client import call_fast
 
+        approved   = existing.get("approved_decisions", [])
+        rejected   = existing.get("rejected_ideas",     [])
+        pending    = existing.get("pending_questions",  [])
+        summary    = existing.get("summary",            "")
+
+        extraction = await call_fast(
+            system=(
+                "You are a project memory extractor. "
+                "Read the conversation turn and extract key decisions. "
+                "Return ONLY valid JSON."
+            ),
+            user=(
+                f"User asked: {question}\n"
+                f"Agent answered: {answer}\n\n"
+                f"Extract from this conversation turn:\n"
+                f"Return JSON:\n"
+                f"{{\n"
+                f'  "new_approved": ["list of things approved or decided in this turn"],\n'
+                f'  "new_rejected": ["list of things rejected or ruled out"],\n'
+                f'  "new_pending":  ["list of new questions or unresolved items"],\n'
+                f'  "update_summary": "one sentence summary of what was discussed — or empty string if nothing important"\n'
+                f"}}"
+            ),
+            max_tokens=300,
+        )
+
+        import re
+        cleaned = re.sub(r'```json\s*', '', extraction)
+        cleaned = re.sub(r'```\s*',     '', cleaned).strip()
+        match   = re.search(r'\{.*\}',  cleaned, re.DOTALL)
+
+        if match:
+            data        = json.loads(match.group())
+            new_approved = data.get("new_approved", [])
+            new_rejected = data.get("new_rejected", [])
+            new_pending  = data.get("new_pending",  [])
+            new_summary  = data.get("update_summary", "")
+
+            # Merge with existing — avoid duplicates
+            merged_approved = list(set(approved + new_approved))[:20]
+            merged_rejected = list(set(rejected + new_rejected))[:20]
+            merged_pending  = list(set(pending  + new_pending))[:10]
+            merged_summary  = new_summary if new_summary else summary
+
+            # Save to Supabase directly
+            import os
+            from supabase import create_client
+            url = os.getenv("SUPABASE_URL", "").replace("/rest/v1", "").rstrip("/")
+            key = os.getenv("SUPABASE_KEY", "")
+            sb  = create_client(url, key)
+
+            sb.table("stage_memory").upsert({
+                "project_id":         project_id,
+                "stage_name":         stage_name,
+                "user_id":            user_id,
+                "approved_decisions": merged_approved,
+                "rejected_ideas":     merged_rejected,
+                "pending_questions":  merged_pending,
+                "important_context":  existing.get("important_context", ""),
+                "tech_stack":         existing.get("tech_stack", []),
+                "summary":            merged_summary,
+            }, on_conflict="project_id,stage_name").execute()
+
+            logger.info(f"Stage memory updated: {project_id}/{stage_name}")
+
+    except Exception as e:
+        logger.warning(f"Stage memory update failed silently: {e}")
+        
 @router.post("/chat/briefing")
 async def get_project_briefing(request: Request, body: BriefingRequest):
     """

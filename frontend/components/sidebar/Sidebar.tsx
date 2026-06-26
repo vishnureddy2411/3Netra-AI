@@ -1,36 +1,31 @@
 // ─────────────────────────────────────────────
-// Sidebar — project history
+// Sidebar — ChatGPT-style project history
 // ─────────────────────────────────────────────
 
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
+import {
+  ClipboardList, BookOpen, Code2, Eye, FileText,
+  TestTube2, Rocket, MessageSquare,
+} from 'lucide-react'
 import UserMenu from './UserMenu'
 import { listProjects, listSessions, deleteProject } from '../../lib/projects'
 import type { UserProject } from '../../lib/supabase'
-import {
-  ClipboardList,
-  BookOpen,
-  Code2,
-  Eye,
-  FileText,
-  TestTube2,
-  Rocket,
-  MessageSquare,
-} from 'lucide-react'
 
 interface Props {
-  activeProjectId: string | null
+  activeProjectId:  string | null
   activeSessionId?: string | null
-  onProjectSelect: (project: UserProject) => void
+  onProjectSelect:  (project: UserProject) => void
   onSessionSelect?: (project: UserProject, sessionId: string) => void
-  onNewProject: () => void
-  onSignOut: () => void
-  role?: string
-  purpose?: string
-  isCollapsed: boolean
-  onToggle: () => void
-  refreshTrigger?: number
+  onNewStageChat?:  (project: UserProject, stageName: string) => void
+  onNewProject:     () => void
+  onSignOut:        () => void
+  role?:            string
+  purpose?:         string
+  isCollapsed:      boolean
+  onToggle:         () => void
+  refreshTrigger?:  number
 }
 
 const STAGE_ICONS: Record<string, React.ReactNode> = {
@@ -73,6 +68,7 @@ export default function Sidebar({
   activeSessionId,
   onProjectSelect,
   onSessionSelect,
+  onNewStageChat,
   onNewProject,
   onSignOut,
   role,
@@ -181,18 +177,17 @@ export default function Sidebar({
         </button>
         <div className="flex-1 overflow-y-auto py-2 space-y-2 px-2">
           {filtered.slice(0, 10).map(p => (
-            <a
+            <button
               key={p.id}
-              href={`/project/${p.id}`}
+              onClick={() => handleProjectClick(p)}
               title={p.title}
-              onClick={e => { e.preventDefault(); handleProjectClick(p) }}
               className={`w-10 h-10 rounded-lg border flex items-center justify-center text-xs font-bold transition-colors ${
                 p.id === activeProjectId
                   ? 'bg-[#1c2333] border-[#58a6ff]/30 text-[#58a6ff]'
                   : 'bg-[#161b22] border-[#21262d] text-[#484f58] hover:text-[#e6edf3]'
               }`}>
               {p.title.slice(0, 2).toUpperCase()}
-            </a>
+            </button>
           ))}
         </div>
       </div>
@@ -355,17 +350,17 @@ export default function Sidebar({
 
                     {/* Action buttons — visible on hover */}
                     <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 mr-1 transition-all">
-                      {/* Open project in new tab */}
-                      <a
-                        href={`/project/${project.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={e => e.stopPropagation()}
+                      {/* Open project page in new tab */}
+                      <button
+                        onClick={e => {
+                          e.stopPropagation()
+                          window.open(`/project/${project.id}`, '_blank', 'noopener,noreferrer')
+                        }}
                         className="w-6 h-6 flex items-center justify-center text-[#484f58] hover:text-[#58a6ff] hover:bg-[#1c2333] rounded transition-all"
                         title="Open project in new tab"
                       >
                         ↗
-                      </a>
+                      </button>
                       {/* Delete */}
                       <button
                         onClick={e => {
@@ -425,8 +420,9 @@ export default function Sidebar({
                         <div className="py-1">
                           {stages.map((stage: any) => (
                             <div key={stage.stage_number}>
-                              {/* Stage label */}
-                              <div className="px-3 py-1.5 flex items-center justify-between gap-1.5">
+
+                              {/* Stage label — folder header with New Chat button */}
+                              <div className="px-3 py-1.5 flex items-center justify-between gap-1.5 group/stage">
                                 <div className="flex items-center gap-1.5">
                                   <span className="text-[#484f58] flex items-center">
                                     {STAGE_ICONS[stage.stage_name] || <MessageSquare size={12} />}
@@ -435,17 +431,16 @@ export default function Sidebar({
                                     {STAGE_LABELS[stage.stage_name] || stage.stage_name}
                                   </span>
                                 </div>
-                                {/* Open stage in project page */}
-                                <a
-                                  href={`/project/${project.id}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={e => e.stopPropagation()}
-                                  className="text-[#30363d] hover:text-[#58a6ff] text-xs transition-colors"
-                                  title="Open in project view"
+                                <button
+                                  onClick={e => {
+                                    e.stopPropagation()
+                                    onNewStageChat?.(project, stage.stage_name)
+                                  }}
+                                  className="opacity-0 group-hover/stage:opacity-100 flex items-center gap-0.5 px-1.5 py-0.5 bg-[#f0b429]/10 border border-[#f0b429]/20 text-[#f0b429] hover:bg-[#f0b429]/20 rounded text-xs font-mono transition-all"
+                                  title={`New chat in ${STAGE_LABELS[stage.stage_name] || stage.stage_name}`}
                                 >
-                                  ↗
-                                </a>
+                                  + New
+                                </button>
                               </div>
 
                               {/* Session items */}
@@ -458,7 +453,7 @@ export default function Sidebar({
                                       isActiveSession ? 'bg-[#161b22]' : ''
                                     }`}
                                   >
-                                    {/* Session click — loads read-only view */}
+                                    {/* Session click — loads read-only view in main page */}
                                     <button
                                       onClick={e => {
                                         e.stopPropagation()
@@ -486,17 +481,22 @@ export default function Sidebar({
                                       </div>
                                     </button>
 
-                                    {/* Open session project in new tab */}
-                                    <a
-                                      href={`/project/${project.id}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      onClick={e => e.stopPropagation()}
+                                    {/* Open session in new tab — uses window.open to prevent page refresh */}
+                                    <button
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        e.preventDefault()
+                                        window.open(
+                                          `/?project=${project.id}&viewSession=${session.id}`,
+                                          '_blank',
+                                          'noopener,noreferrer'
+                                        )
+                                      }}
                                       className="opacity-0 group-hover/session:opacity-100 w-6 h-6 flex items-center justify-center text-[#30363d] hover:text-[#58a6ff] transition-all mr-1 flex-shrink-0"
-                                      title="Open in new tab"
+                                      title="Open session in new tab for reference"
                                     >
                                       ↗
-                                    </a>
+                                    </button>
                                   </div>
                                 )
                               })}
@@ -507,13 +507,15 @@ export default function Sidebar({
 
                       {/* Resume project footer */}
                       <div className="border-t border-[#21262d] px-3 py-2">
-                        <a
-                          href={`/?project=${project.id}`}
+                        <button
+                          onClick={e => {
+                            e.stopPropagation()
+                            window.location.href = `/?project=${project.id}`
+                          }}
                           className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs text-[#484f58] hover:text-[#f0b429] hover:bg-[#161b22] rounded-lg transition-colors font-mono"
-                          title="Resume this project"
                         >
                           Resume Project →
-                        </a>
+                        </button>
                       </div>
                     </div>
                   )}
